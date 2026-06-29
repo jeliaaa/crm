@@ -5,12 +5,25 @@ const BASE = 'https://www.georgiayp.com';
 const DELAY_MS = 700;
 
 const http = axios.create({
-  timeout: 12000,
+  timeout: 20000,
+  maxRedirects: 5,
   headers: {
     'User-Agent':
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
-    Accept: 'text/html,application/xhtml+xml,*/*',
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
     'Accept-Language': 'en-US,en;q=0.9',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Cache-Control': 'max-age=0',
+    'Sec-Ch-Ua': '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+    'Sec-Ch-Ua-Mobile': '?0',
+    'Sec-Ch-Ua-Platform': '"Windows"',
+    'Sec-Fetch-Dest': 'document',
+    'Sec-Fetch-Mode': 'navigate',
+    'Sec-Fetch-Site': 'none',
+    'Sec-Fetch-User': '?1',
+    'Upgrade-Insecure-Requests': '1',
+    Referer: 'https://www.google.com/',
+    Connection: 'keep-alive',
   },
 });
 
@@ -33,42 +46,44 @@ export type ScrapedCompany = {
 
 export type ScrapeMode = 'category' | 'location';
 
-export async function getCategories(): Promise<{ name: string; count: number }[]> {
+export async function getCategories(): Promise<{ name: string; slug: string; count: number }[]> {
   const { data } = await http.get(`${BASE}/browse-business-directory`);
   const $ = cheerio.load(data);
   const seen = new Set<string>();
-  const cats: { name: string; count: number }[] = [];
+  const cats: { name: string; slug: string; count: number }[] = [];
 
   $('a[href*="/category/"]').each((_, el) => {
+    const href = $(el).attr('href') || '';
+    const slug = href.split('/category/')[1]?.split('/')[0] || '';
     const text = $(el).text().trim();
     const match = text.match(/^(.+?)(\d+)$/);
     const name = match ? match[1].trim() : text;
     const count = match ? parseInt(match[2]) : 0;
-    if (name && !seen.has(name)) {
-      seen.add(name);
-      cats.push({ name, count });
+    if (slug && name && !seen.has(slug)) {
+      seen.add(slug);
+      cats.push({ name, slug, count });
     }
   });
 
   return cats;
 }
 
-export async function getCities(): Promise<{ name: string; count: number }[]> {
+export async function getCities(): Promise<{ name: string; slug: string; count: number }[]> {
   const { data } = await http.get(`${BASE}/browse-business-cities`);
   const $ = cheerio.load(data);
   const seen = new Set<string>();
-  const cities: { name: string; count: number }[] = [];
+  const cities: { name: string; slug: string; count: number }[] = [];
 
   $('a[href*="/location/"]').each((_, el) => {
-    const text = $(el).text().trim();
     const href = $(el).attr('href') || '';
-    const cityFromHref = href.split('/location/')[1]?.split('/')[0] || '';
-    const name = text.replace(/^Companies in\s*/i, '').replace(/\d+$/, '').trim() || cityFromHref;
+    const slug = href.split('/location/')[1]?.split('/')[0] || '';
+    const text = $(el).text().trim();
+    const name = text.replace(/^Companies in\s*/i, '').replace(/\d+$/, '').trim() || slug;
     const countMatch = text.match(/(\d+)$/);
     const count = countMatch ? parseInt(countMatch[1]) : 0;
-    if (name && !seen.has(name)) {
-      seen.add(name);
-      cities.push({ name, count });
+    if (slug && name && !seen.has(slug)) {
+      seen.add(slug);
+      cities.push({ name, slug, count });
     }
   });
 
@@ -194,7 +209,8 @@ async function scrapeCompanyPage(url: string): Promise<ScrapedCompany | null> {
 
 export async function scrape(options: {
   mode: ScrapeMode;
-  target: string;
+  slug: string;   // raw URL segment from href, e.g. "Business_Services"
+  label: string;  // display name, e.g. "Business Services"
   page: number;
   deep: boolean;
 }): Promise<{
@@ -206,9 +222,9 @@ export async function scrape(options: {
   let listingUrl: string;
 
   if (options.mode === 'category') {
-    listingUrl = `${BASE}/category/${encodeURIComponent(options.target)}${pageSegment}`;
+    listingUrl = `${BASE}/category/${options.slug}${pageSegment}`;
   } else {
-    listingUrl = `${BASE}/location/${encodeURIComponent(options.target)}${pageSegment}`;
+    listingUrl = `${BASE}/location/${options.slug}${pageSegment}`;
   }
 
   const { companyLinks, totalPages } = await scrapeListingPage(listingUrl);
@@ -222,9 +238,9 @@ export async function scrape(options: {
         email: '',
         website: '',
         address: '',
-        city: options.mode === 'location' ? options.target : '',
-        category: options.mode === 'category' ? options.target : '',
-        categories: options.mode === 'category' ? [options.target] : [],
+        city: options.mode === 'location' ? options.label : '',
+        category: options.mode === 'category' ? options.label : '',
+        categories: options.mode === 'category' ? [options.label] : [],
         description: '',
         source_url: c.url,
         established_year: null,
@@ -239,8 +255,8 @@ export async function scrape(options: {
     await sleep(DELAY_MS);
     const company = await scrapeCompanyPage(link.url);
     if (company) {
-      if (!company.city && options.mode === 'location') company.city = options.target;
-      if (!company.category && options.mode === 'category') company.category = options.target;
+      if (!company.city && options.mode === 'location') company.city = options.label;
+      if (!company.category && options.mode === 'category') company.category = options.label;
       companies.push(company);
     }
   }

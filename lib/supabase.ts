@@ -25,5 +25,14 @@ export type Contact = {
 export const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false } }
+  {
+    auth: { persistSession: false },
+    // Next.js wraps global fetch and caches responses in its Data Cache by
+    // default. That makes server-rendered Supabase reads return stale results
+    // (e.g. an empty table cached before any contacts were scraped). Force
+    // no-store so every query hits Postgres fresh.
+    global: {
+      fetch: (url, options = {}) => fetch(url, { ...options, cache: 'no-store' }),
+    },
+  }
 );

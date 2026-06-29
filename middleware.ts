@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createHash } from 'crypto';
 
-function expectedSession() {
-  return createHash('sha256')
-    .update(`${process.env.CRM_PASSWORD}:${process.env.CRM_SECRET}`)
-    .digest('hex');
+async function expectedSession(): Promise<string> {
+  const input = `${process.env.CRM_PASSWORD}:${process.env.CRM_SECRET}`;
+  const encoded = new TextEncoder().encode(input);
+  const hash = await crypto.subtle.digest('SHA-256', encoded);
+  return Array.from(new Uint8Array(hash))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
 }
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (
@@ -20,7 +22,7 @@ export function middleware(request: NextRequest) {
   }
 
   const session = request.cookies.get('crm_session')?.value;
-  if (session !== expectedSession()) {
+  if (session !== (await expectedSession())) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 

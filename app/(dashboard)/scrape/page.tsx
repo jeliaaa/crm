@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 
 type ScrapeMode = 'category' | 'location';
 
@@ -12,11 +13,11 @@ type ScrapeResult = {
   currentPage: number;
 };
 
-type MetaItem = { name: string; count: number };
+type MetaItem = { name: string; slug: string; count: number };
 
 export default function ScrapePage() {
   const [mode, setMode] = useState<ScrapeMode>('category');
-  const [target, setTarget] = useState('');
+  const [selected, setSelected] = useState<MetaItem | null>(null);
   const [deep, setDeep] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState<number | null>(null);
@@ -27,6 +28,7 @@ export default function ScrapePage() {
   const [log, setLog] = useState<string[]>([]);
   const [error, setError] = useState('');
   const abortRef = useRef(false);
+  const router = useRouter();
 
   useEffect(() => {
     setMetaLoading(true);
@@ -35,7 +37,7 @@ export default function ScrapePage() {
       .then(({ categories: cats, cities: ctys }) => {
         setCategories(cats ?? []);
         setCities(ctys ?? []);
-        if (cats?.[0]) setTarget(cats[0].name);
+        if (cats?.[0]) setSelected(cats[0]);
       })
       .catch(() => {})
       .finally(() => setMetaLoading(false));
@@ -43,7 +45,7 @@ export default function ScrapePage() {
 
   useEffect(() => {
     const items = mode === 'category' ? categories : cities;
-    if (items.length) setTarget(items[0].name);
+    if (items.length) setSelected(items[0]);
     setPage(1);
     setTotalPages(null);
   }, [mode, categories, cities]);
@@ -54,14 +56,14 @@ export default function ScrapePage() {
     const res = await fetch('/api/scrape', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mode, target, page: p, deep }),
+      body: JSON.stringify({ mode, slug: selected?.slug, label: selected?.name, page: p, deep }),
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   }
 
   async function scrapeOne() {
-    if (!target || loading) return;
+    if (!selected || loading) return;
     setLoading(true);
     setError('');
     try {
@@ -72,6 +74,7 @@ export default function ScrapePage() {
         `[Page ${page}] ${data.inserted} new · ${data.duplicates} dupes · ${data.scraped} scraped`,
         ...prev,
       ]);
+      router.refresh();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Scrape failed');
     } finally {
@@ -80,7 +83,7 @@ export default function ScrapePage() {
   }
 
   async function scrapeAll() {
-    if (!target || loading) return;
+    if (!selected || loading) return;
     abortRef.current = false;
     setLoading(true);
     setError('');
@@ -97,6 +100,7 @@ export default function ScrapePage() {
           `[Page ${p}/${data.totalPages}] ${data.inserted} new · ${data.duplicates} dupes`,
           ...prev,
         ]);
+        router.refresh();
         p++;
         if (p <= total) await new Promise((r) => setTimeout(r, 800));
       } catch (e: unknown) {
@@ -146,27 +150,31 @@ export default function ScrapePage() {
             <div className="h-10 bg-slate-100 rounded-lg animate-pulse" />
           ) : items.length > 0 ? (
             <select
-              value={target}
+              value={selected?.slug ?? ''}
               onChange={(e) => {
-                setTarget(e.target.value);
-                setPage(1);
-                setTotalPages(null);
+                const item = items.find((i) => i.slug === e.target.value);
+                if (item) { setSelected(item); setPage(1); setTotalPages(null); }
               }}
               className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
             >
               {items.map((item) => (
-                <option key={item.name} value={item.name}>
+                <option key={item.slug} value={item.slug}>
                   {item.name}{item.count > 0 ? ` (${item.count.toLocaleString()})` : ''}
                 </option>
               ))}
             </select>
           ) : (
             <input
-              value={target}
-              onChange={(e) => setTarget(e.target.value)}
+              value={selected?.slug ?? ''}
+              onChange={(e) => setSelected({ name: e.target.value, slug: e.target.value, count: 0 })}
               placeholder={mode === 'category' ? 'e.g. Advertising' : 'e.g. Tbilisi'}
               className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
+          )}
+          {selected && (
+            <p className="text-xs text-slate-400 mt-1">
+              URL: /{mode === 'category' ? 'category' : 'location'}/{selected.slug}
+            </p>
           )}
         </div>
 
@@ -198,7 +206,7 @@ export default function ScrapePage() {
         <div className="flex gap-3 flex-wrap">
           <button
             onClick={scrapeOne}
-            disabled={loading || !target || done}
+            disabled={loading || !selected || done}
             className="px-5 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-40 transition-colors"
           >
             {loading ? 'Scraping…' : totalPages ? `Scrape page ${page}` : 'Start scraping'}
@@ -207,7 +215,7 @@ export default function ScrapePage() {
           {!done && (
             <button
               onClick={loading ? stop : scrapeAll}
-              disabled={!target}
+              disabled={!selected}
               className={`px-5 py-2.5 rounded-lg text-sm font-medium disabled:opacity-40 transition-colors ${
                 loading
                   ? 'bg-red-600 hover:bg-red-700 text-white'

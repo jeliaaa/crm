@@ -28,3 +28,9 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({ data, count, page, pageSize });
 }
+
+export async function DELETE() {
+  const { error } = await supabase.from('contacts').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
+}

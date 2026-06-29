@@ -1,5 +1,8 @@
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
+import DeleteAllButton from '@/components/DeleteAllButton';
+
+export const dynamic = 'force-dynamic';
 
 const PAGE_SIZE = 50;
 
@@ -35,8 +38,20 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
   if (searchParams.category) query = query.ilike('category', `%${searchParams.category}%`);
   if (searchParams.q) query = query.ilike('name', `%${searchParams.q}%`);
 
-  const { data: contacts, count } = await query;
+  const { data: contacts, count, error } = await query;
   const totalPages = Math.ceil((count || 0) / PAGE_SIZE);
+
+  if (error) {
+    return (
+      <div className="p-8">
+        <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-red-700 text-sm font-mono">
+          <p className="font-bold mb-1">Supabase read error:</p>
+          <p>{error.message}</p>
+          <p className="text-red-400 mt-1">Code: {error.code}</p>
+        </div>
+      </div>
+    );
+  }
 
   const [{ data: cityRows }, { data: catRows }] = await Promise.all([
     supabase.from('contacts').select('city').not('city', 'is', null).limit(200),
@@ -58,12 +73,15 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
           Contacts{' '}
           <span className="text-slate-400 text-lg font-normal">({count?.toLocaleString() ?? 0})</span>
         </h1>
-        <Link
-          href="/scrape"
-          className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700"
-        >
-          + Scrape more
-        </Link>
+        <div className="flex gap-2">
+          <DeleteAllButton />
+          <Link
+            href="/scrape"
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700"
+          >
+            + Scrape more
+          </Link>
+        </div>
       </div>
 
       <form method="GET" className="flex gap-3 mb-6 flex-wrap">

@@ -6,20 +6,21 @@ export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { mode, target, page, deep } = body as {
+  const { mode, slug, label, page, deep } = body as {
     mode: ScrapeMode;
-    target: string;
+    slug: string;
+    label: string;
     page: number;
     deep: boolean;
   };
 
-  if (!mode || !target) {
-    return NextResponse.json({ error: 'mode and target are required' }, { status: 400 });
+  if (!mode || !slug) {
+    return NextResponse.json({ error: 'mode and slug are required' }, { status: 400 });
   }
 
   let result;
   try {
-    result = await scrape({ mode, target, page: page || 1, deep: deep || false });
+    result = await scrape({ mode, slug, label: label || slug, page: page || 1, deep: deep || false });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Scrape failed';
     return NextResponse.json({ error: msg }, { status: 500 });
