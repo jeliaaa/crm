@@ -34,12 +34,15 @@ export default function ScrapePage() {
     setMetaLoading(true);
     fetch('/api/scrape/meta')
       .then((r) => r.json())
-      .then(({ categories: cats, cities: ctys }) => {
+      .then(({ categories: cats, cities: ctys, error: metaError }) => {
         setCategories(cats ?? []);
         setCities(ctys ?? []);
         if (cats?.[0]) setSelected(cats[0]);
+        if (metaError && !cats?.length) {
+          setError(`Could not load categories: ${metaError}. The site is likely blocking the server's IP — set SCRAPER_API_KEY in Vercel to route through a proxy.`);
+        }
       })
-      .catch(() => {})
+      .catch((e) => setError(`Could not reach /api/scrape/meta: ${e.message}`))
       .finally(() => setMetaLoading(false));
   }, []);
 

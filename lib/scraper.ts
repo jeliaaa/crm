@@ -29,6 +29,21 @@ const http = axios.create({
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+// georgiayp.com blocks datacenter IPs (e.g. Vercel), so direct requests get
+// 403/timeout in production. If SCRAPER_API_KEY is set we route through
+// ScraperAPI (residential IPs); otherwise we hit the site directly, which
+// works from a residential IP locally.
+async function fetchHtml(url: string): Promise<string> {
+  const key = process.env.SCRAPER_API_KEY;
+  if (key) {
+    const proxied = `https://api.scraperapi.com/?api_key=${key}&url=${encodeURIComponent(url)}`;
+    const { data } = await http.get(proxied, { timeout: 60000 });
+    return data;
+  }
+  const { data } = await http.get(url);
+  return data;
+}
+
 // GeorgiaYP wraps outbound links as redirects like
 // "https://0.0.66.226/?u=goodworks.ge" or "/redir/goodworks.ge".
 // Pull out the real destination domain.
@@ -70,7 +85,7 @@ export type ScrapedCompany = {
 export type ScrapeMode = 'category' | 'location';
 
 export async function getCategories(): Promise<{ name: string; slug: string; count: number }[]> {
-  const { data } = await http.get(`${BASE}/browse-business-directory`);
+  const data = await fetchHtml(`${BASE}/browse-business-directory`);
   const $ = cheerio.load(data);
   const seen = new Set<string>();
   const cats: { name: string; slug: string; count: number }[] = [];
@@ -92,7 +107,7 @@ export async function getCategories(): Promise<{ name: string; slug: string; cou
 }
 
 export async function getCities(): Promise<{ name: string; slug: string; count: number }[]> {
-  const { data } = await http.get(`${BASE}/browse-business-cities`);
+  const data = await fetchHtml(`${BASE}/browse-business-cities`);
   const $ = cheerio.load(data);
   const seen = new Set<string>();
   const cities: { name: string; slug: string; count: number }[] = [];
@@ -117,7 +132,7 @@ async function scrapeListingPage(url: string): Promise<{
   companyLinks: { url: string; name: string }[];
   totalPages: number;
 }> {
-  const { data } = await http.get(url);
+  const data = await fetchHtml(url);
   const $ = cheerio.load(data);
 
   const seen = new Set<string>();
@@ -148,7 +163,7 @@ async function scrapeListingPage(url: string): Promise<{
 
 async function scrapeCompanyPage(url: string): Promise<ScrapedCompany | null> {
   try {
-    const { data } = await http.get(url);
+    const data = await fetchHtml(url);
     const $ = cheerio.load(data);
 
     const name = $('h1').first().text().trim();
