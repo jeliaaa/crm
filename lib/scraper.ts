@@ -29,6 +29,29 @@ const http = axios.create({
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+// GeorgiaYP wraps outbound links as redirects like
+// "https://0.0.66.226/?u=goodworks.ge" or "/redir/goodworks.ge".
+// Pull out the real destination domain.
+function cleanWebsite(href: string): string {
+  let result = href.trim();
+
+  // Extract the `u=` query param if present (the real target).
+  const uMatch = result.match(/[?&]u=([^&]+)/);
+  if (uMatch) {
+    result = decodeURIComponent(uMatch[1]);
+  } else if (result.includes('/redir/')) {
+    result = decodeURIComponent(result.split('/redir/')[1] || '');
+  }
+
+  // Strip any leading protocol + bare-IP host that may remain.
+  result = result.replace(/^https?:\/\//i, '');
+  result = result.replace(/^\d{1,3}(\.\d{1,3}){3}\/?\??/, '');
+  result = result.replace(/^u=/, '');
+
+  // Drop trailing slashes/whitespace.
+  return result.replace(/\/+$/, '').trim();
+}
+
 export type ScrapedCompany = {
   name: string;
   phone: string;
@@ -140,9 +163,8 @@ async function scrapeCompanyPage(url: string): Promise<ScrapedCompany | null> {
     let website = '';
     $('a').each((_, el) => {
       const href = $(el).attr('href') || '';
-      if (href.includes('/redir/') && !website) {
-        const after = href.split('/redir/')[1];
-        if (after) website = decodeURIComponent(after);
+      if ((href.includes('/redir/') || href.includes('?u=') || href.includes('&u=')) && !website) {
+        website = cleanWebsite(href);
       }
     });
 

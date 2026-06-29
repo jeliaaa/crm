@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  serverExternalPackages: ['cheerio'],
   experimental: {
+    serverComponentsExternalPackages: ['cheerio'],
     staleTimes: {
       dynamic: 0,
     },
