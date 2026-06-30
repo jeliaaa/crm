@@ -29,7 +29,10 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
 
   let query = supabase
     .from('contacts')
-    .select('id, name, phone, city, category, stage, website', { count: 'exact' })
+    .select(
+      'id, name, identification_number, head, phone, email, website, address, city, region, category, activity_code, categories, ownership_type, business_size, established_year, stage',
+      { count: 'exact' }
+    )
     .order('created_at', { ascending: false })
     .range(from, to);
 
@@ -128,46 +131,59 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
         </Link>
       </form>
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-x-auto">
+        <table className="w-full text-sm whitespace-nowrap">
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50">
-              <th className="text-left px-6 py-3 text-slate-500 font-medium">Name</th>
-              <th className="text-left px-6 py-3 text-slate-500 font-medium">Phone</th>
-              <th className="text-left px-6 py-3 text-slate-500 font-medium">City</th>
-              <th className="text-left px-6 py-3 text-slate-500 font-medium">Category</th>
-              <th className="text-left px-6 py-3 text-slate-500 font-medium">Stage</th>
-              <th className="text-left px-6 py-3 text-slate-500 font-medium">Website</th>
+              {['Name', 'ID №', 'Head', 'Phone', 'Email', 'Website', 'Address', 'City', 'Region', 'Industry', 'Activity', 'Ownership', 'Size', 'Est.', 'Stage'].map((h) => (
+                <th key={h} className="text-left px-4 py-3 text-slate-500 font-medium">{h}</th>
+              ))}
             </tr>
           </thead>
           <tbody>
             {contacts?.map((c) => (
-              <tr key={c.id} className="border-b border-slate-50 hover:bg-slate-50">
-                <td className="px-6 py-3">
+              <tr key={c.id} className="border-b border-slate-50 hover:bg-slate-50 align-top">
+                <td className="px-4 py-3">
                   <Link href={`/contacts/${c.id}`} className="font-medium text-indigo-600 hover:underline">
                     {c.name}
                   </Link>
                 </td>
-                <td className="px-6 py-3 text-slate-600 font-mono text-xs">{c.phone || '—'}</td>
-                <td className="px-6 py-3 text-slate-600">{c.city || '—'}</td>
-                <td className="px-6 py-3 text-slate-600">{c.category || '—'}</td>
-                <td className="px-6 py-3">
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STAGE_COLORS[c.stage] ?? 'bg-slate-100 text-slate-600'}`}>
-                    {c.stage}
-                  </span>
+                <td className="px-4 py-3 text-slate-600 font-mono text-xs">{c.identification_number || '—'}</td>
+                <td className="px-4 py-3 text-slate-600">{c.head || '—'}</td>
+                <td className="px-4 py-3 text-slate-600 font-mono text-xs">
+                  {c.phone ? <a href={`tel:${c.phone}`} className="hover:text-indigo-600">{c.phone}</a> : '—'}
                 </td>
-                <td className="px-6 py-3">
+                <td className="px-4 py-3 text-slate-600 text-xs">
+                  {c.email ? <a href={`mailto:${c.email}`} className="hover:text-indigo-600">{c.email}</a> : '—'}
+                </td>
+                <td className="px-4 py-3">
                   {c.website ? (
-                    <a href={c.website.startsWith('http') ? c.website : `https://${c.website}`} target="_blank" rel="noopener noreferrer" className="text-indigo-500 hover:underline text-xs truncate max-w-[120px] block">
+                    <a href={c.website.startsWith('http') ? c.website : `https://${c.website}`} target="_blank" rel="noopener noreferrer" className="text-indigo-500 hover:underline text-xs truncate max-w-[140px] block">
                       {c.website.replace(/^https?:\/\//, '')}
                     </a>
                   ) : '—'}
+                </td>
+                <td className="px-4 py-3 text-slate-500 text-xs max-w-[200px] truncate" title={c.address || ''}>{c.address || '—'}</td>
+                <td className="px-4 py-3 text-slate-600">{c.city || '—'}</td>
+                <td className="px-4 py-3 text-slate-600">{c.region || '—'}</td>
+                <td className="px-4 py-3 text-slate-600 max-w-[160px] truncate" title={c.category || ''}>{c.category || '—'}</td>
+                <td className="px-4 py-3 text-slate-500 text-xs max-w-[200px] truncate" title={(c.categories || []).join(', ')}>
+                  {c.activity_code ? <span className="font-mono mr-1">{c.activity_code}</span> : ''}
+                  {(c.categories && c.categories[0]) || (c.activity_code ? '' : '—')}
+                </td>
+                <td className="px-4 py-3 text-slate-500 text-xs max-w-[140px] truncate" title={c.ownership_type || ''}>{c.ownership_type || '—'}</td>
+                <td className="px-4 py-3 text-slate-600 text-xs">{c.business_size || '—'}</td>
+                <td className="px-4 py-3 text-slate-600 text-xs">{c.established_year || '—'}</td>
+                <td className="px-4 py-3">
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STAGE_COLORS[c.stage] ?? 'bg-slate-100 text-slate-600'}`}>
+                    {c.stage}
+                  </span>
                 </td>
               </tr>
             ))}
             {!contacts?.length && (
               <tr>
-                <td colSpan={6} className="px-6 py-12 text-center text-slate-400">
+                <td colSpan={15} className="px-6 py-12 text-center text-slate-400">
                   No contacts found.{' '}
                   {!searchParams.q && !searchParams.stage && !searchParams.city && !searchParams.category ? (
                     <Link href="/scrape" className="text-indigo-600 hover:underline">Start scraping →</Link>

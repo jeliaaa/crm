@@ -96,12 +96,13 @@ function toRow(c: NormalizedCompany) {
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { code, sectionName, page, limit, contactFilter = 'phoneOrEmail' } = body as {
+  const { code, sectionName, page, limit, contactFilter = 'phoneOrEmail', legalForms } = body as {
     code: string;
     sectionName: string;
     page: number;
     limit?: number;
     contactFilter?: ContactFilter;
+    legalForms?: number[];
   };
 
   if (!code || !sectionName) {
@@ -115,6 +116,7 @@ export async function POST(request: NextRequest) {
       sectionName,
       page: page || 1,
       limit: limit || 100,
+      legalForms: Array.isArray(legalForms) ? legalForms : undefined,
     });
   } catch (e: unknown) {
     const rl = e as RateLimitError;

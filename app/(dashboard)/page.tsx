@@ -26,7 +26,7 @@ export default async function DashboardPage() {
 
   const { data: recent } = await supabase
     .from('contacts')
-    .select('id, name, city, category, stage, created_at')
+    .select('id, name, identification_number, head, phone, email, website, city, region, category, business_size, stage, created_at')
     .order('created_at', { ascending: false })
     .limit(10);
 
@@ -59,26 +59,43 @@ export default async function DashboardPage() {
             View all →
           </Link>
         </div>
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full text-sm whitespace-nowrap">
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50">
-              <th className="text-left px-6 py-3 text-slate-500 font-medium">Name</th>
-              <th className="text-left px-6 py-3 text-slate-500 font-medium">City</th>
-              <th className="text-left px-6 py-3 text-slate-500 font-medium">Category</th>
-              <th className="text-left px-6 py-3 text-slate-500 font-medium">Stage</th>
+              {['Name', 'ID №', 'Head', 'Phone', 'Email', 'Website', 'City', 'Region', 'Industry', 'Size', 'Stage'].map((h) => (
+                <th key={h} className="text-left px-4 py-3 text-slate-500 font-medium">{h}</th>
+              ))}
             </tr>
           </thead>
           <tbody>
             {recent?.map((c) => (
               <tr key={c.id} className="border-b border-slate-50 hover:bg-slate-50">
-                <td className="px-6 py-3">
+                <td className="px-4 py-3">
                   <Link href={`/contacts/${c.id}`} className="font-medium text-indigo-600 hover:underline">
                     {c.name}
                   </Link>
                 </td>
-                <td className="px-6 py-3 text-slate-600">{c.city || '—'}</td>
-                <td className="px-6 py-3 text-slate-600">{c.category || '—'}</td>
-                <td className="px-6 py-3">
+                <td className="px-4 py-3 text-slate-600 font-mono text-xs">{c.identification_number || '—'}</td>
+                <td className="px-4 py-3 text-slate-600">{c.head || '—'}</td>
+                <td className="px-4 py-3 text-slate-600 font-mono text-xs">
+                  {c.phone ? <a href={`tel:${c.phone}`} className="hover:text-indigo-600">{c.phone}</a> : '—'}
+                </td>
+                <td className="px-4 py-3 text-slate-600 text-xs">
+                  {c.email ? <a href={`mailto:${c.email}`} className="hover:text-indigo-600">{c.email}</a> : '—'}
+                </td>
+                <td className="px-4 py-3">
+                  {c.website ? (
+                    <a href={c.website.startsWith('http') ? c.website : `https://${c.website}`} target="_blank" rel="noopener noreferrer" className="text-indigo-500 hover:underline text-xs truncate max-w-[140px] block">
+                      {c.website.replace(/^https?:\/\//, '')}
+                    </a>
+                  ) : '—'}
+                </td>
+                <td className="px-4 py-3 text-slate-600">{c.city || '—'}</td>
+                <td className="px-4 py-3 text-slate-600">{c.region || '—'}</td>
+                <td className="px-4 py-3 text-slate-600 max-w-[160px] truncate" title={c.category || ''}>{c.category || '—'}</td>
+                <td className="px-4 py-3 text-slate-600 text-xs">{c.business_size || '—'}</td>
+                <td className="px-4 py-3">
                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STAGE_COLORS[c.stage] ?? 'bg-slate-100 text-slate-600'}`}>
                     {c.stage}
                   </span>
@@ -87,7 +104,7 @@ export default async function DashboardPage() {
             ))}
             {!recent?.length && (
               <tr>
-                <td colSpan={4} className="px-6 py-10 text-center text-slate-400 text-sm">
+                <td colSpan={11} className="px-6 py-10 text-center text-slate-400 text-sm">
                   No contacts yet.{' '}
                   <Link href="/scrape" className="text-indigo-600 hover:underline">
                     Scrape some businesses →
@@ -97,6 +114,7 @@ export default async function DashboardPage() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

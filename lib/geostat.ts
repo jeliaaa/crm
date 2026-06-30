@@ -31,6 +31,24 @@ export type Category = {
   name: string; // localized section name
 };
 
+export type LegalForm = {
+  id: number;
+  abbreviation: string;
+  name: string;
+};
+
+export async function getLegalForms(lang: Lang = 'en'): Promise<LegalForm[]> {
+  const { data } = await http.get(`${API}/legal-forms?lang=${lang}`);
+  if (!Array.isArray(data)) return [];
+  return data
+    .filter((f: { ID?: number; Inactive?: unknown }) => f.ID != null && !f.Inactive)
+    .map((f: { ID: number; Abbreviation: string; Legal_Form: string }) => ({
+      id: f.ID,
+      abbreviation: f.Abbreviation,
+      name: f.Legal_Form,
+    }));
+}
+
 // One company row as returned by /documents.
 type GeostatDoc = {
   Stat_ID: number;
@@ -141,12 +159,20 @@ export async function searchCategory(opts: {
   sectionName: string;
   page: number;
   limit: number;
+  legalForms?: number[];
   lang?: Lang;
 }): Promise<{ companies: NormalizedCompany[]; total: number; totalPages: number; page: number }> {
   const lang = opts.lang ?? 'en';
-  const url = `${API}/documents?lang=${lang}&activityCode=${encodeURIComponent(
-    opts.code
-  )}&page=${opts.page}&limit=${opts.limit}`;
+  const params = new URLSearchParams({
+    lang,
+    activityCode: opts.code,
+    page: String(opts.page),
+    limit: String(opts.limit),
+  });
+  for (const id of opts.legalForms ?? []) {
+    params.append('legalForm', String(id));
+  }
+  const url = `${API}/documents?${params.toString()}`;
 
   let res;
   try {

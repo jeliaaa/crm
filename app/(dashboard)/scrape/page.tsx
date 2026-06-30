@@ -18,11 +18,15 @@ type ScrapeResult = {
 
 type ContactFilter = 'phone' | 'email' | 'phoneOrEmail' | 'none';
 
+type LegalForm = { id: number; abbreviation: string; name: string };
+
 const LIMIT = 100; // companies per request
 
 export default function ScrapePage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [selected, setSelected] = useState<Category | null>(null);
+  const [legalForms, setLegalForms] = useState<LegalForm[]>([]);
+  const [selectedForms, setSelectedForms] = useState<number[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState<number | null>(null);
   const [total, setTotal] = useState<number | null>(null);
@@ -34,12 +38,19 @@ export default function ScrapePage() {
   const abortRef = useRef(false);
   const router = useRouter();
 
+  function resetProgress() {
+    setPage(1);
+    setTotalPages(null);
+    setTotal(null);
+  }
+
   useEffect(() => {
     setMetaLoading(true);
     fetch('/api/scrape/meta')
       .then((r) => r.json())
-      .then(({ categories: cats, error: metaError }) => {
+      .then(({ categories: cats, legalForms: forms, error: metaError }) => {
         setCategories(cats ?? []);
+        setLegalForms(forms ?? []);
         if (cats?.[0]) setSelected(cats[0]);
         if (metaError && !cats?.length) {
           setError(`Could not load industries: ${metaError}`);
@@ -49,11 +60,25 @@ export default function ScrapePage() {
       .finally(() => setMetaLoading(false));
   }, []);
 
+  function toggleForm(id: number) {
+    setSelectedForms((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+    resetProgress();
+  }
+
   async function doScrape(p: number): Promise<ScrapeResult> {
     const res = await fetch('/api/scrape', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: selected?.code, sectionName: selected?.name, page: p, limit: LIMIT, contactFilter }),
+      body: JSON.stringify({
+        code: selected?.code,
+        sectionName: selected?.name,
+        page: p,
+        limit: LIMIT,
+        contactFilter,
+        legalForms: selectedForms,
+      }),
     });
     if (res.status === 429) {
       const { retryAfterMs } = await res.json();
@@ -148,7 +173,7 @@ export default function ScrapePage() {
               value={selected?.code ?? ''}
               onChange={(e) => {
                 const c = categories.find((i) => i.code === e.target.value);
-                if (c) { setSelected(c); setPage(1); setTotalPages(null); setTotal(null); }
+                if (c) { setSelected(c); resetProgress(); }
               }}
               className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
             >
@@ -159,6 +184,50 @@ export default function ScrapePage() {
               ))}
             </select>
           )}
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-sm font-medium text-slate-700">
+              Legal form{' '}
+              <span className="text-slate-400 font-normal">
+                {selectedForms.length ? `(${selectedForms.length} selected)` : '(all)'}
+              </span>
+            </label>
+            {selectedForms.length > 0 && (
+              <button
+                type="button"
+                onClick={() => { setSelectedForms([]); resetProgress(); }}
+                className="text-xs text-indigo-600 hover:underline"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          {metaLoading ? (
+            <div className="h-24 bg-slate-100 rounded-lg animate-pulse" />
+          ) : (
+            <div className="max-h-44 overflow-y-auto border border-slate-200 rounded-lg divide-y divide-slate-100">
+              {legalForms.map((f) => (
+                <label
+                  key={f.id}
+                  className="flex items-center gap-3 px-3 py-2 hover:bg-slate-50 cursor-pointer text-sm"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedForms.includes(f.id)}
+                    onChange={() => toggleForm(f.id)}
+                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 shrink-0"
+                  />
+                  <span className="font-medium text-slate-700 shrink-0">{f.abbreviation}</span>
+                  <span className="text-slate-400 truncate">{f.name}</span>
+                </label>
+              ))}
+            </div>
+          )}
+          <p className="text-xs text-slate-400 mt-1">
+            Leave all unchecked to import every legal form. e.g. შპს = LLC, იმ = sole proprietor.
+          </p>
         </div>
 
         <div>
