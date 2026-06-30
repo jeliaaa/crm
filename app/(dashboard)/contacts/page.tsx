@@ -19,6 +19,7 @@ interface SearchParams {
   city?: string;
   category?: string;
   q?: string;
+  contact?: string; // '', 'phone', 'email', 'phoneOrEmail'
   page?: string;
 }
 
@@ -40,6 +41,13 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
   if (searchParams.city) query = query.ilike('city', `%${searchParams.city}%`);
   if (searchParams.category) query = query.ilike('category', `%${searchParams.category}%`);
   if (searchParams.q) query = query.ilike('name', `%${searchParams.q}%`);
+  if (searchParams.contact === 'phone') {
+    query = query.not('phone', 'is', null).neq('phone', '');
+  } else if (searchParams.contact === 'email') {
+    query = query.not('email', 'is', null).neq('email', '');
+  } else if (searchParams.contact === 'phoneOrEmail') {
+    query = query.or('and(phone.not.is.null,phone.neq.),and(email.not.is.null,email.neq.)');
+  }
 
   const { data: contacts, count, error } = await query;
   const totalPages = Math.ceil((count || 0) / PAGE_SIZE);
@@ -152,6 +160,16 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
           <option value="">All categories</option>
           {categories.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
+        <select
+          name="contact"
+          defaultValue={searchParams.contact || ''}
+          className="px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+        >
+          <option value="">Any contact info</option>
+          <option value="phone">Only with phone number</option>
+          <option value="email">Only with email</option>
+          <option value="phoneOrEmail">Has phone or email</option>
+        </select>
         <button
           type="submit"
           className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700"
@@ -219,7 +237,7 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
               <tr>
                 <td colSpan={15} className="px-6 py-12 text-center text-slate-400">
                   No contacts found.{' '}
-                  {!searchParams.q && !searchParams.stage && !searchParams.city && !searchParams.category ? (
+                  {!searchParams.q && !searchParams.stage && !searchParams.city && !searchParams.category && !searchParams.contact ? (
                     <Link href="/scrape" className="text-indigo-600 hover:underline">Start scraping →</Link>
                   ) : (
                     <Link href="/contacts" className="text-indigo-600 hover:underline">Clear filters</Link>
