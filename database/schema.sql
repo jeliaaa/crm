@@ -35,6 +35,7 @@ create index if not exists contacts_stage_idx    on contacts(stage);
 create index if not exists contacts_city_idx     on contacts(city);
 create index if not exists contacts_region_idx   on contacts(region);
 create index if not exists contacts_category_idx on contacts(category);
+create index if not exists contacts_identification_idx on contacts(identification_number);
 
 create or replace function update_updated_at()
 returns trigger language plpgsql as $$

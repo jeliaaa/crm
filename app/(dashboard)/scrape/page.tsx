@@ -7,12 +7,16 @@ type Category = { code: string; name: string };
 
 type ScrapeResult = {
   scraped: number;
+  skippedNoContact: number;
   inserted: number;
+  updated: number;
   duplicates: number;
   total: number;
   totalPages: number;
   currentPage: number;
 };
+
+type ContactFilter = 'phone' | 'email' | 'phoneOrEmail' | 'none';
 
 const LIMIT = 100; // companies per request
 
@@ -24,6 +28,7 @@ export default function ScrapePage() {
   const [total, setTotal] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [metaLoading, setMetaLoading] = useState(false);
+  const [contactFilter, setContactFilter] = useState<ContactFilter>('phoneOrEmail');
   const [log, setLog] = useState<string[]>([]);
   const [error, setError] = useState('');
   const abortRef = useRef(false);
@@ -48,7 +53,7 @@ export default function ScrapePage() {
     const res = await fetch('/api/scrape', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: selected?.code, sectionName: selected?.name, page: p, limit: LIMIT }),
+      body: JSON.stringify({ code: selected?.code, sectionName: selected?.name, page: p, limit: LIMIT, contactFilter }),
     });
     if (res.status === 429) {
       const { retryAfterMs } = await res.json();
@@ -65,7 +70,7 @@ export default function ScrapePage() {
     setTotal(data.total);
     setPage(p + 1);
     setLog((prev) => [
-      `[Page ${p}/${data.totalPages}] +${data.inserted} new · ${data.duplicates} dupes · ${data.total.toLocaleString()} total in industry`,
+      `[Page ${p}/${data.totalPages}] +${data.inserted} new · ${data.updated} filled · ${data.duplicates} dupes · ${data.skippedNoContact} no-contact`,
       ...prev,
     ]);
     router.refresh();
@@ -154,6 +159,23 @@ export default function ScrapePage() {
               ))}
             </select>
           )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-2">Contact filter</label>
+          <select
+            value={contactFilter}
+            onChange={(e) => setContactFilter(e.target.value as ContactFilter)}
+            className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+          >
+            <option value="phoneOrEmail">Has phone or email (recommended)</option>
+            <option value="phone">Has phone only (~0.5% of records)</option>
+            <option value="email">Has email only</option>
+            <option value="none">No filter — import everything</option>
+          </select>
+          <p className="text-xs text-slate-400 mt-1">
+            The official register rarely lists phone numbers, so phone-only keeps very few.
+          </p>
         </div>
 
         {total !== null && (
