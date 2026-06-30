@@ -69,6 +69,38 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
     return '?' + new URLSearchParams(Object.fromEntries(Object.entries(p).filter(([, v]) => v))).toString();
   };
 
+  const pagination = totalPages > 1 && (
+    <div className="flex items-center justify-between gap-2 flex-wrap">
+      <span className="text-xs text-slate-400">
+        Page {page} of {totalPages} · {count?.toLocaleString()} total
+      </span>
+      <div className="flex gap-2">
+        {page > 1 && (
+          <Link href={buildQuery({ page: String(page - 1) })} className="px-3 py-1.5 rounded-lg text-sm bg-white text-slate-600 hover:bg-slate-100 border border-slate-200">
+            ← Prev
+          </Link>
+        )}
+        {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+          const p = Math.max(1, Math.min(page - 3, totalPages - 6)) + i;
+          return (
+            <Link
+              key={p}
+              href={buildQuery({ page: String(p) })}
+              className={`px-3 py-1.5 rounded-lg text-sm ${p === page ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'}`}
+            >
+              {p}
+            </Link>
+          );
+        })}
+        {page < totalPages && (
+          <Link href={buildQuery({ page: String(page + 1) })} className="px-3 py-1.5 rounded-lg text-sm bg-white text-slate-600 hover:bg-slate-100 border border-slate-200">
+            Next →
+          </Link>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <div className="p-8">
       <div className="flex justify-between items-center mb-6">
@@ -130,6 +162,8 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
           Clear
         </Link>
       </form>
+
+      {pagination && <div className="mb-4">{pagination}</div>}
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-x-auto">
         <table className="w-full text-sm whitespace-nowrap">
@@ -197,32 +231,7 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
         </table>
       </div>
 
-      {totalPages > 1 && (
-        <div className="flex justify-center gap-2 mt-6">
-          {page > 1 && (
-            <Link href={buildQuery({ page: String(page - 1) })} className="px-3 py-1.5 rounded-lg text-sm bg-white text-slate-600 hover:bg-slate-100 border border-slate-200">
-              ← Prev
-            </Link>
-          )}
-          {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
-            const p = Math.max(1, Math.min(page - 3, totalPages - 6)) + i;
-            return (
-              <Link
-                key={p}
-                href={buildQuery({ page: String(p) })}
-                className={`px-3 py-1.5 rounded-lg text-sm ${p === page ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'}`}
-              >
-                {p}
-              </Link>
-            );
-          })}
-          {page < totalPages && (
-            <Link href={buildQuery({ page: String(page + 1) })} className="px-3 py-1.5 rounded-lg text-sm bg-white text-slate-600 hover:bg-slate-100 border border-slate-200">
-              Next →
-            </Link>
-          )}
-        </div>
-      )}
+      {pagination && <div className="mt-4">{pagination}</div>}
     </div>
   );
 }
