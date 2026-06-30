@@ -8,12 +8,20 @@
 // e.g. "G" = Wholesale and retail trade, "L" = Real estate.
 
 import axios from 'axios';
+import https from 'https';
 
 const API = 'https://br-api.geostat.ge/api';
+
+// geostat's server presents an incomplete certificate chain (missing
+// intermediate), so Node rejects it with "unable to verify the first
+// certificate". This is a public, read-only government API and the call only
+// runs server-side, so we relax chain verification for this client only.
+const insecureAgent = new https.Agent({ rejectUnauthorized: false });
 
 const http = axios.create({
   timeout: 30000,
   headers: { Accept: 'application/json' },
+  httpsAgent: insecureAgent,
 });
 
 export type Lang = 'en' | 'ge';
