@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server';
-import { getCategories, getCities } from '@/lib/scraper';
+import { getCategories } from '@/lib/geostat';
 
 export const maxDuration = 30;
 
 export async function GET() {
   try {
-    const [categories, cities] = await Promise.all([getCategories(), getCities()]);
-    return NextResponse.json({ categories, cities });
+    const categories = await getCategories('en');
+    return NextResponse.json({ categories });
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : 'Failed to fetch metadata';
-    return NextResponse.json({ error: msg, categories: [], cities: [] }, { status: 500 });
+    const msg = e instanceof Error ? e.message : 'Failed to fetch categories';
+    return NextResponse.json({ error: msg, categories: [] }, { status: 500 });
   }
 }

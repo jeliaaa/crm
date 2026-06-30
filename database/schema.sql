@@ -1,18 +1,26 @@
--- Run this in your Supabase SQL editor
+-- Run this in your Supabase SQL editor (fresh install)
 
 create extension if not exists "pgcrypto";
 
 create table if not exists contacts (
   id            uuid        default gen_random_uuid() primary key,
+  stat_id       bigint      unique,                -- geostat Stat_ID (dedupe key)
   name          text        not null,
+  identification_number text,                      -- legal/tax code
   phone         text,
   mobile        text,
   email         text,
   website       text,
   address       text,
   city          text,
-  category      text,
-  categories    text[]      default '{}',
+  region        text,
+  category      text,                              -- NACE section, e.g. "Real estate"
+  activity_code text,                              -- specific NACE code, e.g. "70.20.2"
+  categories    text[]      default '{}',          -- specific NACE activity names
+  head          text,
+  partner       text,
+  ownership_type text,
+  business_size text,
   description   text,
   source_url    text        unique,
   established_year integer,
@@ -25,6 +33,7 @@ create table if not exists contacts (
 
 create index if not exists contacts_stage_idx    on contacts(stage);
 create index if not exists contacts_city_idx     on contacts(city);
+create index if not exists contacts_region_idx   on contacts(region);
 create index if not exists contacts_category_idx on contacts(category);
 
 create or replace function update_updated_at()
@@ -35,6 +44,7 @@ begin
 end;
 $$;
 
+drop trigger if exists contacts_updated_at on contacts;
 create trigger contacts_updated_at
   before update on contacts
   for each row execute function update_updated_at();

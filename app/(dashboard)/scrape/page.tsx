@@ -3,28 +3,27 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
-type ScrapeMode = 'category' | 'location';
+type Category = { code: string; name: string };
 
 type ScrapeResult = {
   scraped: number;
   inserted: number;
   duplicates: number;
+  total: number;
   totalPages: number;
   currentPage: number;
 };
 
-type MetaItem = { name: string; slug: string; count: number };
+const LIMIT = 100; // companies per request
 
 export default function ScrapePage() {
-  const [mode, setMode] = useState<ScrapeMode>('category');
-  const [selected, setSelected] = useState<MetaItem | null>(null);
-  const [deep, setDeep] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selected, setSelected] = useState<Category | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState<number | null>(null);
+  const [total, setTotal] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [metaLoading, setMetaLoading] = useState(false);
-  const [categories, setCategories] = useState<MetaItem[]>([]);
-  const [cities, setCities] = useState<MetaItem[]>([]);
   const [log, setLog] = useState<string[]>([]);
   const [error, setError] = useState('');
   const abortRef = useRef(false);
@@ -34,35 +33,42 @@ export default function ScrapePage() {
     setMetaLoading(true);
     fetch('/api/scrape/meta')
       .then((r) => r.json())
-      .then(({ categories: cats, cities: ctys, error: metaError }) => {
+      .then(({ categories: cats, error: metaError }) => {
         setCategories(cats ?? []);
-        setCities(ctys ?? []);
         if (cats?.[0]) setSelected(cats[0]);
         if (metaError && !cats?.length) {
-          setError(`Could not load categories: ${metaError}. The site is likely blocking the server's IP — set SCRAPER_API_KEY in Vercel to route through a proxy.`);
+          setError(`Could not load industries: ${metaError}`);
         }
       })
       .catch((e) => setError(`Could not reach /api/scrape/meta: ${e.message}`))
       .finally(() => setMetaLoading(false));
   }, []);
 
-  useEffect(() => {
-    const items = mode === 'category' ? categories : cities;
-    if (items.length) setSelected(items[0]);
-    setPage(1);
-    setTotalPages(null);
-  }, [mode, categories, cities]);
-
-  const items = mode === 'category' ? categories : cities;
-
   async function doScrape(p: number): Promise<ScrapeResult> {
     const res = await fetch('/api/scrape', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mode, slug: selected?.slug, label: selected?.name, page: p, deep }),
+      body: JSON.stringify({ code: selected?.code, sectionName: selected?.name, page: p, limit: LIMIT }),
     });
+    if (res.status === 429) {
+      const { retryAfterMs } = await res.json();
+      const err = new Error('rate_limited') as Error & { retryAfterMs: number };
+      err.retryAfterMs = retryAfterMs || 60000;
+      throw err;
+    }
     if (!res.ok) throw new Error(await res.text());
     return res.json();
+  }
+
+  function applyResult(p: number, data: ScrapeResult) {
+    setTotalPages(data.totalPages);
+    setTotal(data.total);
+    setPage(p + 1);
+    setLog((prev) => [
+      `[Page ${p}/${data.totalPages}] +${data.inserted} new · ${data.duplicates} dupes · ${data.total.toLocaleString()} total in industry`,
+      ...prev,
+    ]);
+    router.refresh();
   }
 
   async function scrapeOne() {
@@ -71,15 +77,9 @@ export default function ScrapePage() {
     setError('');
     try {
       const data = await doScrape(page);
-      setTotalPages(data.totalPages);
-      setPage(page + 1);
-      setLog((prev) => [
-        `[Page ${page}] ${data.inserted} new · ${data.duplicates} dupes · ${data.scraped} scraped`,
-        ...prev,
-      ]);
-      router.refresh();
+      applyResult(page, data);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Scrape failed');
+      handleError(e);
     } finally {
       setLoading(false);
     }
@@ -91,28 +91,32 @@ export default function ScrapePage() {
     setLoading(true);
     setError('');
     let p = page;
-    let total = totalPages ?? 9999;
+    let max = totalPages ?? Infinity;
 
-    while (p <= total && !abortRef.current) {
+    while (p <= max && !abortRef.current) {
       try {
         const data = await doScrape(p);
-        total = data.totalPages;
-        setTotalPages(data.totalPages);
-        setPage(p + 1);
-        setLog((prev) => [
-          `[Page ${p}/${data.totalPages}] ${data.inserted} new · ${data.duplicates} dupes`,
-          ...prev,
-        ]);
-        router.refresh();
+        max = data.totalPages;
+        applyResult(p, data);
         p++;
-        if (p <= total) await new Promise((r) => setTimeout(r, 800));
+        if (p <= max) await sleep(400);
       } catch (e: unknown) {
-        setError(e instanceof Error ? e.message : 'Scrape failed');
+        const rl = e as Error & { retryAfterMs?: number };
+        if (rl?.retryAfterMs) {
+          const secs = Math.ceil(rl.retryAfterMs / 1000);
+          setLog((prev) => [`Rate limited — waiting ${secs}s before continuing…`, ...prev]);
+          await sleep(rl.retryAfterMs + 500);
+          continue; // retry same page
+        }
+        handleError(e);
         break;
       }
     }
-
     setLoading(false);
+  }
+
+  function handleError(e: unknown) {
+    setError(e instanceof Error ? e.message : 'Scrape failed');
   }
 
   function stop() {
@@ -120,85 +124,43 @@ export default function ScrapePage() {
   }
 
   const done = totalPages !== null && page > totalPages;
+  const remaining = totalPages !== null ? Math.max(0, totalPages - page + 1) : null;
 
   return (
     <div className="p-8 max-w-2xl">
-      <h1 className="text-2xl font-bold text-slate-900 mb-6">Scrape Businesses</h1>
+      <h1 className="text-2xl font-bold text-slate-900 mb-1">Import Businesses</h1>
+      <p className="text-slate-500 text-sm mb-6">
+        Official data from the Georgian Statistical Business Register, by industry (NACE Rev.2).
+      </p>
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 space-y-5">
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">Scrape by</label>
-          <div className="flex gap-2">
-            {(['category', 'location'] as ScrapeMode[]).map((m) => (
-              <button
-                key={m}
-                onClick={() => setMode(m)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  mode === m
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}
-              >
-                {m === 'category' ? 'Category' : 'City'}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">
-            {mode === 'category' ? 'Category' : 'City'}
-          </label>
+          <label className="block text-sm font-medium text-slate-700 mb-2">Industry</label>
           {metaLoading ? (
             <div className="h-10 bg-slate-100 rounded-lg animate-pulse" />
-          ) : items.length > 0 ? (
+          ) : (
             <select
-              value={selected?.slug ?? ''}
+              value={selected?.code ?? ''}
               onChange={(e) => {
-                const item = items.find((i) => i.slug === e.target.value);
-                if (item) { setSelected(item); setPage(1); setTotalPages(null); }
+                const c = categories.find((i) => i.code === e.target.value);
+                if (c) { setSelected(c); setPage(1); setTotalPages(null); setTotal(null); }
               }}
               className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
             >
-              {items.map((item) => (
-                <option key={item.slug} value={item.slug}>
-                  {item.name}{item.count > 0 ? ` (${item.count.toLocaleString()})` : ''}
+              {categories.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.code} — {c.name}
                 </option>
               ))}
             </select>
-          ) : (
-            <input
-              value={selected?.slug ?? ''}
-              onChange={(e) => setSelected({ name: e.target.value, slug: e.target.value, count: 0 })}
-              placeholder={mode === 'category' ? 'e.g. Advertising' : 'e.g. Tbilisi'}
-              className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          )}
-          {selected && (
-            <p className="text-xs text-slate-400 mt-1">
-              URL: /{mode === 'category' ? 'category' : 'location'}/{selected.slug}
-            </p>
           )}
         </div>
 
-        <label className="flex items-start gap-3 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={deep}
-            onChange={(e) => setDeep(e.target.checked)}
-            className="mt-0.5 w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-          />
-          <span className="text-sm text-slate-700">
-            <span className="font-medium">Deep scrape</span> — visit each company page for phone, website &amp; email
-            <span className="text-slate-400 ml-1">(~3× slower, max 15 companies/page)</span>
-          </span>
-        </label>
-
-        {totalPages !== null && (
+        {total !== null && (
           <div className={`text-sm rounded-lg px-4 py-3 ${done ? 'bg-green-50 text-green-700' : 'bg-blue-50 text-blue-700'}`}>
             {done
-              ? `All ${totalPages} pages done!`
-              : `Page ${page - 1} of ${totalPages} scraped — ${totalPages - page + 1} remaining`}
+              ? `All ${total.toLocaleString()} businesses imported across ${totalPages} pages.`
+              : `${total.toLocaleString()} businesses in this industry · ${remaining} of ${totalPages} pages left (${LIMIT}/page).`}
           </div>
         )}
 
@@ -212,7 +174,7 @@ export default function ScrapePage() {
             disabled={loading || !selected || done}
             className="px-5 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-40 transition-colors"
           >
-            {loading ? 'Scraping…' : totalPages ? `Scrape page ${page}` : 'Start scraping'}
+            {loading ? 'Importing…' : totalPages ? `Import page ${page}` : 'Import first 100'}
           </button>
 
           {!done && (
@@ -225,20 +187,20 @@ export default function ScrapePage() {
                   : 'bg-slate-800 hover:bg-slate-900 text-white'
               }`}
             >
-              {loading ? 'Stop' : totalPages ? `Scrape all remaining (${totalPages - page + 1})` : 'Scrape all pages'}
+              {loading ? 'Stop' : remaining ? `Import all remaining (${remaining} pages)` : 'Import entire industry'}
             </button>
           )}
         </div>
 
         <p className="text-xs text-slate-400">
-          Vercel functions have a 60 s limit — each page call scrapes one listing page.
-          Use &ldquo;Scrape all pages&rdquo; to chain them automatically.
+          The register API is rate-limited (~50 requests/window). &ldquo;Import all&rdquo; automatically
+          pauses and resumes when the limit is hit, so large industries just take a while.
         </p>
       </div>
 
       {log.length > 0 && (
         <div className="mt-6 bg-slate-900 rounded-xl p-4 font-mono text-xs text-green-400 space-y-1 max-h-64 overflow-y-auto">
-          <div className="text-slate-500 mb-2">— scrape log —</div>
+          <div className="text-slate-500 mb-2">— import log —</div>
           {log.map((line, i) => (
             <div key={i}>{line}</div>
           ))}
@@ -246,4 +208,8 @@ export default function ScrapePage() {
       )}
     </div>
   );
+}
+
+function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
 }

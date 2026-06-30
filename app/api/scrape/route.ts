@@ -1,28 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import { scrape, ScrapeMode } from '@/lib/scraper';
+import { searchCategory, type RateLimitError } from '@/lib/geostat';
 
 export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { mode, slug, label, page, deep } = body as {
-    mode: ScrapeMode;
-    slug: string;
-    label: string;
+  const { code, sectionName, page, limit } = body as {
+    code: string;
+    sectionName: string;
     page: number;
-    deep: boolean;
+    limit?: number;
   };
 
-  if (!mode || !slug) {
-    return NextResponse.json({ error: 'mode and slug are required' }, { status: 400 });
+  if (!code || !sectionName) {
+    return NextResponse.json({ error: 'code and sectionName are required' }, { status: 400 });
   }
 
   let result;
   try {
-    result = await scrape({ mode, slug, label: label || slug, page: page || 1, deep: deep || false });
+    result = await searchCategory({
+      code,
+      sectionName,
+      page: page || 1,
+      limit: limit || 100,
+    });
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : 'Scrape failed';
+    const rl = e as RateLimitError;
+    if (rl?.retryAfterMs) {
+      return NextResponse.json(
+        { error: 'rate_limited', retryAfterMs: rl.retryAfterMs },
+        { status: 429 }
+      );
+    }
+    const msg = e instanceof Error ? e.message : 'Search failed';
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 
@@ -31,30 +42,38 @@ export async function POST(request: NextRequest) {
       scraped: 0,
       inserted: 0,
       duplicates: 0,
+      total: result.total,
       totalPages: result.totalPages,
-      currentPage: result.currentPage,
+      currentPage: result.page,
     });
   }
 
   const rows = result.companies.map((c) => ({
+    stat_id: c.stat_id,
     name: c.name,
-    phone: c.phone || null,
-    mobile: c.mobile || null,
-    email: c.email || null,
-    website: c.website || null,
-    address: c.address || null,
-    city: c.city || null,
-    category: c.category || null,
+    identification_number: c.identification_number,
+    phone: c.phone,
+    email: c.email,
+    website: c.website,
+    address: c.address,
+    city: c.city,
+    region: c.region,
+    category: c.category,
+    activity_code: c.activity_code,
     categories: c.categories,
-    description: c.description || null,
-    source_url: c.source_url || null,
+    head: c.head,
+    partner: c.partner,
+    ownership_type: c.ownership_type,
+    business_size: c.business_size,
+    description: c.description,
     established_year: c.established_year,
+    source_url: c.source_url,
     stage: 'lead',
   }));
 
   const { data: inserted, error } = await supabase
     .from('contacts')
-    .upsert(rows, { onConflict: 'source_url', ignoreDuplicates: true })
+    .upsert(rows, { onConflict: 'stat_id', ignoreDuplicates: true })
     .select('id');
 
   if (error) {
@@ -62,13 +81,13 @@ export async function POST(request: NextRequest) {
   }
 
   const insertedCount = inserted?.length ?? 0;
-  const duplicates = result.companies.length - insertedCount;
 
   return NextResponse.json({
     scraped: result.companies.length,
     inserted: insertedCount,
-    duplicates,
+    duplicates: result.companies.length - insertedCount,
+    total: result.total,
     totalPages: result.totalPages,
-    currentPage: result.currentPage,
+    currentPage: result.page,
   });
 }

@@ -4,15 +4,23 @@ export type Stage = 'lead' | 'contacted' | 'qualified' | 'won' | 'lost';
 
 export type Contact = {
   id: string;
+  stat_id: number | null;
   name: string;
+  identification_number: string | null;
   phone: string | null;
   mobile: string | null;
   email: string | null;
   website: string | null;
   address: string | null;
   city: string | null;
+  region: string | null;
   category: string | null;
+  activity_code: string | null;
   categories: string[];
+  head: string | null;
+  partner: string | null;
+  ownership_type: string | null;
+  business_size: string | null;
   description: string | null;
   source_url: string | null;
   established_year: number | null;

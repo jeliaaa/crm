@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Contact, Stage } from '@/lib/supabase';
-import { ArrowLeft, Phone, Globe, MapPin, Tag, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Phone, Globe, MapPin, Tag, ExternalLink, Hash, User, Building2 } from 'lucide-react';
 
 const STAGES: Stage[] = ['lead', 'contacted', 'qualified', 'won', 'lost'];
 
@@ -55,6 +55,18 @@ export default function ContactDetail({ contact }: { contact: Contact }) {
         </div>
 
         <div className="p-6 grid grid-cols-2 gap-4 text-sm">
+          {contact.identification_number && (
+            <div className="flex items-center gap-2 text-slate-700">
+              <Hash size={14} className="text-slate-400 shrink-0" />
+              <span className="font-mono">{contact.identification_number}</span>
+            </div>
+          )}
+          {contact.head && (
+            <div className="flex items-center gap-2 text-slate-700">
+              <User size={14} className="text-slate-400 shrink-0" />
+              {contact.head}
+            </div>
+          )}
           {contact.phone && (
             <div className="flex items-center gap-2 text-slate-700">
               <Phone size={14} className="text-slate-400 shrink-0" />
@@ -87,11 +99,26 @@ export default function ContactDetail({ contact }: { contact: Contact }) {
               {contact.address}
             </div>
           )}
-          {(contact.city || contact.categories?.length > 0) && (
+          {(contact.region || contact.city || contact.ownership_type || contact.business_size || contact.categories?.length > 0) && (
             <div className="flex flex-wrap items-center gap-2 col-span-2">
+              {contact.region && (
+                <span className="inline-flex items-center gap-1 text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded-full">
+                  <MapPin size={10} /> {contact.region}
+                </span>
+              )}
               {contact.city && (
                 <span className="inline-flex items-center gap-1 text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded-full">
                   <MapPin size={10} /> {contact.city}
+                </span>
+              )}
+              {contact.business_size && (
+                <span className="inline-flex items-center gap-1 text-xs bg-amber-50 text-amber-700 px-2 py-1 rounded-full">
+                  <Building2 size={10} /> {contact.business_size}
+                </span>
+              )}
+              {contact.ownership_type && (
+                <span className="inline-flex items-center gap-1 text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded-full">
+                  {contact.ownership_type}
                 </span>
               )}
               {contact.categories?.map((cat) => (
@@ -108,8 +135,8 @@ export default function ContactDetail({ contact }: { contact: Contact }) {
           )}
           {contact.source_url && (
             <div className="col-span-2">
-              <a href={contact.source_url} target="_blank" rel="noopener noreferrer" className="text-xs text-slate-400 hover:text-indigo-500 flex items-center gap-1">
-                View on GeorgiaYP <ExternalLink size={10} />
+              <a href="https://br.geostat.ge/" target="_blank" rel="noopener noreferrer" className="text-xs text-slate-400 hover:text-indigo-500 flex items-center gap-1">
+                Source: Statistical Business Register <ExternalLink size={10} />
               </a>
             </div>
           )}
