@@ -25,7 +25,7 @@ create table if not exists contacts (
   source_url    text        unique,
   established_year integer,
   stage         text        default 'lead'
-                            check (stage in ('lead','contacted','qualified','won','lost')),
+                            check (stage in ('lead','follow_up','won','lost','didnt_answer')),
   notes         text        default '',
   created_at    timestamptz default now(),
   updated_at    timestamptz default now()
@@ -49,3 +49,18 @@ drop trigger if exists contacts_updated_at on contacts;
 create trigger contacts_updated_at
   before update on contacts
   for each row execute function update_updated_at();
+
+-- Activity timeline: status changes, comments, follow-ups.
+create table if not exists contact_activities (
+  id             uuid        default gen_random_uuid() primary key,
+  contact_id     uuid        not null references contacts(id) on delete cascade,
+  type           text        not null check (type in ('status_change', 'comment', 'follow_up')),
+  from_stage     text,
+  to_stage       text,
+  comment        text,
+  follow_up_date date,
+  created_at     timestamptz default now()
+);
+
+create index if not exists contact_activities_contact_idx
+  on contact_activities(contact_id, created_at desc);

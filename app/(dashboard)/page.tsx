@@ -1,27 +1,22 @@
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
+import { stageBadge, stageLabel } from '@/lib/stages';
 
-const STAGE_COLORS: Record<string, string> = {
-  lead: 'bg-blue-100 text-blue-700',
-  contacted: 'bg-yellow-100 text-yellow-700',
-  qualified: 'bg-purple-100 text-purple-700',
-  won: 'bg-green-100 text-green-700',
-  lost: 'bg-red-100 text-red-700',
-};
+export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage() {
   const [
     { count: total },
     { count: leads },
-    { count: contacted },
-    { count: qualified },
+    { count: followUp },
     { count: won },
+    { count: lost },
   ] = await Promise.all([
     supabase.from('contacts').select('*', { count: 'exact', head: true }),
     supabase.from('contacts').select('*', { count: 'exact', head: true }).eq('stage', 'lead'),
-    supabase.from('contacts').select('*', { count: 'exact', head: true }).eq('stage', 'contacted'),
-    supabase.from('contacts').select('*', { count: 'exact', head: true }).eq('stage', 'qualified'),
+    supabase.from('contacts').select('*', { count: 'exact', head: true }).eq('stage', 'follow_up'),
     supabase.from('contacts').select('*', { count: 'exact', head: true }).eq('stage', 'won'),
+    supabase.from('contacts').select('*', { count: 'exact', head: true }).eq('stage', 'lost'),
   ]);
 
   const { data: recent } = await supabase
@@ -32,10 +27,10 @@ export default async function DashboardPage() {
 
   const stats = [
     { label: 'Total Contacts', value: total ?? 0, color: 'bg-indigo-500' },
-    { label: 'New Leads', value: leads ?? 0, color: 'bg-blue-500' },
-    { label: 'Contacted', value: contacted ?? 0, color: 'bg-yellow-500' },
-    { label: 'Qualified', value: qualified ?? 0, color: 'bg-purple-500' },
+    { label: 'Leads', value: leads ?? 0, color: 'bg-blue-500' },
+    { label: 'Follow-up', value: followUp ?? 0, color: 'bg-amber-500' },
     { label: 'Won', value: won ?? 0, color: 'bg-green-500' },
+    { label: 'Lost', value: lost ?? 0, color: 'bg-red-500' },
   ];
 
   return (
@@ -96,8 +91,8 @@ export default async function DashboardPage() {
                 <td className="px-4 py-3 text-slate-600 max-w-[160px] truncate" title={c.category || ''}>{c.category || '—'}</td>
                 <td className="px-4 py-3 text-slate-600 text-xs">{c.business_size || '—'}</td>
                 <td className="px-4 py-3">
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STAGE_COLORS[c.stage] ?? 'bg-slate-100 text-slate-600'}`}>
-                    {c.stage}
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${stageBadge(c.stage)}`}>
+                    {stageLabel(c.stage)}
                   </span>
                 </td>
               </tr>

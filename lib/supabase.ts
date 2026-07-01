@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
+import type { Stage } from './stages';
 
-export type Stage = 'lead' | 'contacted' | 'qualified' | 'won' | 'lost';
+export type { Stage };
 
 export type Contact = {
   id: string;

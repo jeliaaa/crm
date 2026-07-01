@@ -3,18 +3,12 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Contact, Stage } from '@/lib/supabase';
+import { Contact } from '@/lib/supabase';
+import { STAGE_ORDER, STAGE_LABELS, STAGE_BADGE_BORDER, type Stage } from '@/lib/stages';
 import { ArrowLeft, Phone, Globe, MapPin, Tag, ExternalLink, Hash, User, Building2 } from 'lucide-react';
 
-const STAGES: Stage[] = ['lead', 'contacted', 'qualified', 'won', 'lost'];
-
-const STAGE_COLORS: Record<Stage, string> = {
-  lead: 'bg-blue-100 text-blue-700 border-blue-200',
-  contacted: 'bg-yellow-100 text-yellow-700 border-yellow-200',
-  qualified: 'bg-purple-100 text-purple-700 border-purple-200',
-  won: 'bg-green-100 text-green-700 border-green-200',
-  lost: 'bg-red-100 text-red-700 border-red-200',
-};
+const STAGES = STAGE_ORDER;
+const STAGE_COLORS = STAGE_BADGE_BORDER;
 
 export default function ContactDetail({ contact }: { contact: Contact }) {
   const [stage, setStage] = useState<Stage>(contact.stage);
@@ -159,7 +153,7 @@ export default function ContactDetail({ contact }: { contact: Contact }) {
                     : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
                 }`}
               >
-                {s.charAt(0).toUpperCase() + s.slice(1)}
+                {STAGE_LABELS[s]}
               </button>
             ))}
           </div>

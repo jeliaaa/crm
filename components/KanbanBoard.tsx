@@ -19,7 +19,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import Link from 'next/link';
-import { Stage } from '@/lib/supabase';
+import { STAGE_ORDER, STAGE_LABELS, STAGE_COLUMN, type Stage } from '@/lib/stages';
 
 type KanbanContact = {
   id: string;
@@ -31,13 +31,14 @@ type KanbanContact = {
   website: string | null;
 };
 
-const STAGES: { id: Stage; label: string; headerColor: string; bg: string }[] = [
-  { id: 'lead', label: 'Lead', headerColor: 'text-blue-600', bg: 'bg-blue-50' },
-  { id: 'contacted', label: 'Contacted', headerColor: 'text-yellow-600', bg: 'bg-yellow-50' },
-  { id: 'qualified', label: 'Qualified', headerColor: 'text-purple-600', bg: 'bg-purple-50' },
-  { id: 'won', label: 'Won', headerColor: 'text-green-600', bg: 'bg-green-50' },
-  { id: 'lost', label: 'Lost', headerColor: 'text-red-600', bg: 'bg-red-50' },
-];
+const STAGES: { id: Stage; label: string; headerColor: string; bg: string }[] = STAGE_ORDER.map(
+  (s) => ({
+    id: s,
+    label: STAGE_LABELS[s],
+    headerColor: STAGE_COLUMN[s].header,
+    bg: STAGE_COLUMN[s].bg,
+  })
+);
 
 function SortableCard({ contact, isDragging }: { contact: KanbanContact; isDragging: boolean }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({

@@ -1,18 +1,12 @@
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import DeleteAllButton from '@/components/DeleteAllButton';
+import ContactQuickView from '@/components/ContactQuickView';
+import { STAGE_ORDER, STAGE_LABELS, stageBadge, stageLabel } from '@/lib/stages';
 
 export const dynamic = 'force-dynamic';
 
 const PAGE_SIZE = 50;
-
-const STAGE_COLORS: Record<string, string> = {
-  lead: 'bg-blue-100 text-blue-700',
-  contacted: 'bg-yellow-100 text-yellow-700',
-  qualified: 'bg-purple-100 text-purple-700',
-  won: 'bg-green-100 text-green-700',
-  lost: 'bg-red-100 text-red-700',
-};
 
 interface SearchParams {
   stage?: string;
@@ -140,8 +134,8 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
           className="px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
         >
           <option value="">All stages</option>
-          {['lead', 'contacted', 'qualified', 'won', 'lost'].map((s) => (
-            <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+          {STAGE_ORDER.map((s) => (
+            <option key={s} value={s}>{STAGE_LABELS[s]}</option>
           ))}
         </select>
         <select
@@ -187,6 +181,7 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
         <table className="w-full text-sm whitespace-nowrap">
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50">
+              <th className="px-3 py-3"></th>
               {['Name', 'ID №', 'Head', 'Phone', 'Email', 'Website', 'Address', 'City', 'Region', 'Industry', 'Activity', 'Ownership', 'Size', 'Est.', 'Stage'].map((h) => (
                 <th key={h} className="text-left px-4 py-3 text-slate-500 font-medium">{h}</th>
               ))}
@@ -195,6 +190,9 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
           <tbody>
             {contacts?.map((c) => (
               <tr key={c.id} className="border-b border-slate-50 hover:bg-slate-50 align-top">
+                <td className="px-3 py-3">
+                  <ContactQuickView contactId={c.id} name={c.name} />
+                </td>
                 <td className="px-4 py-3">
                   <Link href={`/contacts/${c.id}`} className="font-medium text-indigo-600 hover:underline">
                     {c.name}
@@ -227,15 +225,15 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
                 <td className="px-4 py-3 text-slate-600 text-xs">{c.business_size || '—'}</td>
                 <td className="px-4 py-3 text-slate-600 text-xs">{c.established_year || '—'}</td>
                 <td className="px-4 py-3">
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STAGE_COLORS[c.stage] ?? 'bg-slate-100 text-slate-600'}`}>
-                    {c.stage}
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${stageBadge(c.stage)}`}>
+                    {stageLabel(c.stage)}
                   </span>
                 </td>
               </tr>
             ))}
             {!contacts?.length && (
               <tr>
-                <td colSpan={15} className="px-6 py-12 text-center text-slate-400">
+                <td colSpan={16} className="px-6 py-12 text-center text-slate-400">
                   No contacts found.{' '}
                   {!searchParams.q && !searchParams.stage && !searchParams.city && !searchParams.category && !searchParams.contact ? (
                     <Link href="/scrape" className="text-indigo-600 hover:underline">Start scraping →</Link>
