@@ -25,7 +25,7 @@ create table if not exists contacts (
   source_url    text        unique,
   established_year integer,
   stage         text        default 'lead'
-                            check (stage in ('lead','follow_up','won','lost','didnt_answer')),
+                            check (stage in ('lead','follow_up','done','lost','didnt_answer')),
   notes         text        default '',
   created_at    timestamptz default now(),
   updated_at    timestamptz default now()

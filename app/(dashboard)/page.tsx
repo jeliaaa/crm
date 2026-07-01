@@ -9,13 +9,13 @@ export default async function DashboardPage() {
     { count: total },
     { count: leads },
     { count: followUp },
-    { count: won },
+    { count: done },
     { count: lost },
   ] = await Promise.all([
     supabase.from('contacts').select('*', { count: 'exact', head: true }),
     supabase.from('contacts').select('*', { count: 'exact', head: true }).eq('stage', 'lead'),
     supabase.from('contacts').select('*', { count: 'exact', head: true }).eq('stage', 'follow_up'),
-    supabase.from('contacts').select('*', { count: 'exact', head: true }).eq('stage', 'won'),
+    supabase.from('contacts').select('*', { count: 'exact', head: true }).eq('stage', 'done'),
     supabase.from('contacts').select('*', { count: 'exact', head: true }).eq('stage', 'lost'),
   ]);
 
@@ -29,7 +29,7 @@ export default async function DashboardPage() {
     { label: 'Total Contacts', value: total ?? 0, color: 'bg-indigo-500' },
     { label: 'Leads', value: leads ?? 0, color: 'bg-blue-500' },
     { label: 'Follow-up', value: followUp ?? 0, color: 'bg-amber-500' },
-    { label: 'Won', value: won ?? 0, color: 'bg-green-500' },
+    { label: 'Done', value: done ?? 0, color: 'bg-green-500' },
     { label: 'Lost', value: lost ?? 0, color: 'bg-red-500' },
   ];
 

@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight, CalendarClock } from 'lucide-react';
 import ContactQuickView from '@/components/ContactQuickView';
-import { stageBadge, stageLabel } from '@/lib/stages';
+import { stageBadge, stageLabel, STAGE_ORDER, STAGE_LABELS, type Stage } from '@/lib/stages';
 
 type FollowUp = {
   id: string;
@@ -20,6 +20,12 @@ type FollowUp = {
   } | null;
 };
 
+type StatusChange = {
+  id: string;
+  to_stage: string;
+  created_at: string;
+};
+
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 function ymd(d: Date): string {
@@ -28,6 +34,7 @@ function ymd(d: Date): string {
 
 export default function FollowUpCalendar() {
   const [followUps, setFollowUps] = useState<FollowUp[]>([]);
+  const [statusChanges, setStatusChanges] = useState<StatusChange[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [cursor, setCursor] = useState(() => {
@@ -37,14 +44,17 @@ export default function FollowUpCalendar() {
   const [selected, setSelected] = useState<string>(() => ymd(new Date()));
 
   const load = useCallback(() => {
-    return fetch('/api/follow-ups')
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.error) setError(d.error);
+    return Promise.all([
+      fetch('/api/follow-ups').then((r) => r.json()),
+      fetch('/api/status-changes').then((r) => r.json()),
+    ])
+      .then(([fu, sc]) => {
+        if (fu.error) setError(fu.error);
         else {
           setError('');
-          setFollowUps(d.followUps ?? []);
+          setFollowUps(fu.followUps ?? []);
         }
+        setStatusChanges(sc.statusChanges ?? []);
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -64,6 +74,18 @@ export default function FollowUpCalendar() {
     }
     return m;
   }, [followUps]);
+
+  // date string -> { stage: count } of leads processed (status changes) that day
+  const processedByDate = useMemo(() => {
+    const m = new Map<string, Record<string, number>>();
+    for (const s of statusChanges) {
+      const key = ymd(new Date(s.created_at)); // local day
+      if (!m.has(key)) m.set(key, {});
+      const bucket = m.get(key)!;
+      bucket[s.to_stage] = (bucket[s.to_stage] ?? 0) + 1;
+    }
+    return m;
+  }, [statusChanges]);
 
   const todayStr = ymd(new Date());
 
@@ -98,6 +120,8 @@ export default function FollowUpCalendar() {
   }
 
   const selectedItems = byDate.get(selected) ?? [];
+  const selectedProcessed = processedByDate.get(selected) ?? {};
+  const selectedProcessedTotal = Object.values(selectedProcessed).reduce((a, b) => a + b, 0);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -177,8 +201,31 @@ export default function FollowUpCalendar() {
             day: 'numeric',
           })}
         </h2>
+
+        {/* Leads processed (calls made) that day, by outcome */}
+        <div className="mt-3 mb-4 rounded-lg bg-slate-50 border border-slate-100 p-3">
+          <div className="flex items-baseline justify-between mb-2">
+            <span className="text-xs font-medium text-slate-500">Leads processed</span>
+            <span className="text-lg font-bold text-slate-900">{selectedProcessedTotal}</span>
+          </div>
+          {selectedProcessedTotal === 0 ? (
+            <p className="text-xs text-slate-400">No calls logged this day.</p>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {STAGE_ORDER.filter((s) => selectedProcessed[s]).map((s) => (
+                <span
+                  key={s}
+                  className={`px-2 py-0.5 rounded-full text-xs font-medium ${stageBadge(s)}`}
+                >
+                  {STAGE_LABELS[s as Stage]}: {selectedProcessed[s]}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
         <p className="text-xs text-slate-400 mb-4">
-          {selectedItems.length} follow-up{selectedItems.length === 1 ? '' : 's'}
+          {selectedItems.length} follow-up{selectedItems.length === 1 ? '' : 's'} scheduled
         </p>
 
         {selectedItems.length === 0 ? (
