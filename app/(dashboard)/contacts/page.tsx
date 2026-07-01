@@ -166,8 +166,8 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
           className="px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
         >
           <option value="">Any contact info</option>
-          <option value="phone">Only with phone number</option>
-          <option value="email">Only with email</option>
+          <option value="phone">Has phone number</option>
+          <option value="email">Has email</option>
           <option value="phoneOrEmail">Has phone or email</option>
         </select>
         <button
