@@ -64,3 +64,15 @@ create table if not exists contact_activities (
 
 create index if not exists contact_activities_contact_idx
   on contact_activities(contact_id, created_at desc);
+
+-- Daily stage snapshots (taken 18:00 Tbilisi) for 24h difference tracking.
+create table if not exists stage_snapshots (
+  snapshot_date date        primary key,
+  lead          integer     not null default 0,
+  follow_up     integer     not null default 0,
+  done          integer     not null default 0,
+  lost          integer     not null default 0,
+  didnt_answer  integer     not null default 0,
+  total         integer     not null default 0,
+  created_at    timestamptz default now()
+);

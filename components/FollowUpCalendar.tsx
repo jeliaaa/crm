@@ -20,10 +20,14 @@ type FollowUp = {
   } | null;
 };
 
-type StatusChange = {
-  id: string;
-  to_stage: string;
-  created_at: string;
+type Snapshot = {
+  snapshot_date: string;
+  lead: number;
+  follow_up: number;
+  done: number;
+  lost: number;
+  didnt_answer: number;
+  total: number;
 };
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -34,8 +38,9 @@ function ymd(d: Date): string {
 
 export default function FollowUpCalendar() {
   const [followUps, setFollowUps] = useState<FollowUp[]>([]);
-  const [statusChanges, setStatusChanges] = useState<StatusChange[]>([]);
+  const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [loading, setLoading] = useState(true);
+  const [snapping, setSnapping] = useState(false);
   const [error, setError] = useState('');
   const [cursor, setCursor] = useState(() => {
     const d = new Date();
@@ -46,15 +51,15 @@ export default function FollowUpCalendar() {
   const load = useCallback(() => {
     return Promise.all([
       fetch('/api/follow-ups').then((r) => r.json()),
-      fetch('/api/status-changes').then((r) => r.json()),
+      fetch('/api/snapshots').then((r) => r.json()),
     ])
-      .then(([fu, sc]) => {
+      .then(([fu, sn]) => {
         if (fu.error) setError(fu.error);
         else {
           setError('');
           setFollowUps(fu.followUps ?? []);
         }
-        setStatusChanges(sc.statusChanges ?? []);
+        setSnapshots(sn.snapshots ?? []);
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -63,6 +68,16 @@ export default function FollowUpCalendar() {
   useEffect(() => {
     load();
   }, [load]);
+
+  async function snapshotNow() {
+    setSnapping(true);
+    try {
+      await fetch('/api/snapshots', { method: 'POST' });
+      await load();
+    } finally {
+      setSnapping(false);
+    }
+  }
 
   // date string -> follow-ups on that day
   const byDate = useMemo(() => {
@@ -75,17 +90,22 @@ export default function FollowUpCalendar() {
     return m;
   }, [followUps]);
 
-  // date string -> { stage: count } of leads processed (status changes) that day
-  const processedByDate = useMemo(() => {
-    const m = new Map<string, Record<string, number>>();
-    for (const s of statusChanges) {
-      const key = ymd(new Date(s.created_at)); // local day
-      if (!m.has(key)) m.set(key, {});
-      const bucket = m.get(key)!;
-      bucket[s.to_stage] = (bucket[s.to_stage] ?? 0) + 1;
+  // For each snapshot day, the difference vs the previous snapshot — i.e. the
+  // net movement per stage in the 24h ending at that day's 18:00 snapshot.
+  const deltaByDate = useMemo(() => {
+    const asc = [...snapshots].sort((a, b) => a.snapshot_date.localeCompare(b.snapshot_date));
+    const m = new Map<string, Record<Stage, number>>();
+    for (let i = 0; i < asc.length; i++) {
+      const cur = asc[i];
+      const prev = asc[i - 1];
+      const diff = {} as Record<Stage, number>;
+      for (const s of STAGE_ORDER) {
+        diff[s] = cur[s] - (prev ? prev[s] : 0);
+      }
+      m.set(cur.snapshot_date, diff);
     }
     return m;
-  }, [statusChanges]);
+  }, [snapshots]);
 
   const todayStr = ymd(new Date());
 
@@ -120,8 +140,8 @@ export default function FollowUpCalendar() {
   }
 
   const selectedItems = byDate.get(selected) ?? [];
-  const selectedProcessed = processedByDate.get(selected) ?? {};
-  const selectedProcessedTotal = Object.values(selectedProcessed).reduce((a, b) => a + b, 0);
+  const selectedDelta = deltaByDate.get(selected);
+  const hasSnapshot = selectedDelta !== undefined;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -202,24 +222,38 @@ export default function FollowUpCalendar() {
           })}
         </h2>
 
-        {/* Leads processed (calls made) that day, by outcome */}
+        {/* 24h change per stage, from the 18:00 snapshot difference */}
         <div className="mt-3 mb-4 rounded-lg bg-slate-50 border border-slate-100 p-3">
-          <div className="flex items-baseline justify-between mb-2">
-            <span className="text-xs font-medium text-slate-500">Leads processed</span>
-            <span className="text-lg font-bold text-slate-900">{selectedProcessedTotal}</span>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-medium text-slate-500">Change in last 24h (by 6 PM)</p>
+            <button
+              onClick={snapshotNow}
+              disabled={snapping}
+              title="Record a snapshot now instead of waiting for 6 PM"
+              className="text-xs text-indigo-600 hover:underline disabled:opacity-50"
+            >
+              {snapping ? 'Saving…' : 'Snapshot now'}
+            </button>
           </div>
-          {selectedProcessedTotal === 0 ? (
-            <p className="text-xs text-slate-400">No calls logged this day.</p>
+          {!hasSnapshot ? (
+            <p className="text-xs text-slate-400">
+              No 6 PM snapshot for this day{selected === todayStr ? ' yet' : ''}.
+            </p>
           ) : (
             <div className="flex flex-wrap gap-1.5">
-              {STAGE_ORDER.filter((s) => selectedProcessed[s]).map((s) => (
-                <span
-                  key={s}
-                  className={`px-2 py-0.5 rounded-full text-xs font-medium ${stageBadge(s)}`}
-                >
-                  {STAGE_LABELS[s as Stage]}: {selectedProcessed[s]}
-                </span>
-              ))}
+              {STAGE_ORDER.map((s) => {
+                const v = selectedDelta![s];
+                return (
+                  <span
+                    key={s}
+                    className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                      v === 0 ? 'bg-slate-100 text-slate-400' : stageBadge(s)
+                    }`}
+                  >
+                    {STAGE_LABELS[s]}: {v > 0 ? `+${v}` : v}
+                  </span>
+                );
+              })}
             </div>
           )}
         </div>
