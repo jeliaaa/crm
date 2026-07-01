@@ -2,12 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, Users, Kanban, Download, LogOut, CalendarClock } from 'lucide-react';
+import { LayoutDashboard, Users, Kanban, Download, LogOut, CalendarClock, CalendarDays } from 'lucide-react';
 
 const NAV = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard, exact: true },
   { href: '/contacts', label: 'Contacts', icon: Users },
   { href: '/follow-ups', label: 'Follow-ups', icon: CalendarClock },
+  { href: '/calendar', label: 'Calendar', icon: CalendarDays },
   { href: '/pipeline', label: 'Pipeline', icon: Kanban },
   { href: '/scrape', label: 'Scrape', icon: Download },
 ];
