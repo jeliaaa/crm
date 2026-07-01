@@ -1,10 +1,18 @@
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
-import { stageBadge, stageLabel } from '@/lib/stages';
+import { stageBadge, stageLabel, STAGE_ORDER, STAGE_LABELS } from '@/lib/stages';
+import { getSnapshots } from '@/lib/snapshot';
 
 export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage() {
+  const snapshots = await getSnapshots(2).catch(() => []);
+  const latest = snapshots[0];
+  const prev = snapshots[1];
+  const delta = latest
+    ? Object.fromEntries(STAGE_ORDER.map((s) => [s, latest[s] - (prev ? prev[s] : 0)]))
+    : null;
+
   const [
     { count: total },
     { count: leads },
@@ -45,6 +53,42 @@ export default async function DashboardPage() {
             <p className="text-xs text-slate-500 mt-1">{s.label}</p>
           </div>
         ))}
+      </div>
+
+      <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-100 mb-8">
+        <div className="flex items-baseline justify-between mb-3">
+          <h2 className="font-semibold text-slate-900">Since previous 6 PM snapshot</h2>
+          <Link href="/calendar" className="text-sm text-indigo-600 hover:underline">
+            Calendar →
+          </Link>
+        </div>
+        {!delta ? (
+          <p className="text-sm text-slate-400">
+            No snapshots yet — take one from the{' '}
+            <Link href="/calendar" className="text-indigo-600 hover:underline">Calendar</Link>{' '}
+            or wait for the 6 PM run. Two are needed to show a difference.
+          </p>
+        ) : !prev ? (
+          <p className="text-sm text-slate-400">
+            Baseline recorded {latest.snapshot_date}. The first 24h difference appears after the next 6 PM snapshot.
+          </p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {STAGE_ORDER.map((s) => {
+              const v = delta[s];
+              return (
+                <span
+                  key={s}
+                  className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    v === 0 ? 'bg-slate-100 text-slate-400' : stageBadge(s)
+                  }`}
+                >
+                  {STAGE_LABELS[s]}: {v > 0 ? `+${v}` : v}
+                </span>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
