@@ -43,9 +43,11 @@ type ContactInfo = {
 export default function ContactQuickView({
   contactId,
   name,
+  onChange,
 }: {
   contactId: string;
   name: string;
+  onChange?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [contact, setContact] = useState<ContactInfo | null>(null);
@@ -85,6 +87,7 @@ export default function ContactQuickView({
       if (res.ok) {
         await load();
         router.refresh();
+        onChange?.();
       }
     } finally {
       setSaving(false);

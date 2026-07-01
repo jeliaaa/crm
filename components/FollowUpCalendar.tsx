@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight, CalendarClock } from 'lucide-react';
 import ContactQuickView from '@/components/ContactQuickView';
@@ -36,16 +36,23 @@ export default function FollowUpCalendar() {
   });
   const [selected, setSelected] = useState<string>(() => ymd(new Date()));
 
-  useEffect(() => {
-    fetch('/api/follow-ups')
+  const load = useCallback(() => {
+    return fetch('/api/follow-ups')
       .then((r) => r.json())
       .then((d) => {
         if (d.error) setError(d.error);
-        else setFollowUps(d.followUps ?? []);
+        else {
+          setError('');
+          setFollowUps(d.followUps ?? []);
+        }
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   // date string -> follow-ups on that day
   const byDate = useMemo(() => {
@@ -180,7 +187,7 @@ export default function FollowUpCalendar() {
           <div className="space-y-3">
             {selectedItems.map((f) => (
               <div key={f.id} className="flex items-start gap-3 border-b border-slate-100 pb-3 last:border-0">
-                <ContactQuickView contactId={f.contact_id} name={f.contacts?.name ?? 'Contact'} />
+                <ContactQuickView contactId={f.contact_id} name={f.contacts?.name ?? 'Contact'} onChange={load} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <Link href={`/contacts/${f.contact_id}`} className="font-medium text-indigo-600 hover:underline truncate">
