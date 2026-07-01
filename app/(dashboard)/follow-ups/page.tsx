@@ -40,9 +40,10 @@ function fmt(date: string): string {
 export default async function FollowUpsPage() {
   const { data, error } = await supabase
     .from('contact_activities')
-    .select('id, contact_id, comment, follow_up_date, created_at, contacts(name, phone, email, city, category, stage)')
+    .select('id, contact_id, comment, follow_up_date, created_at, contacts!inner(name, phone, email, city, category, stage)')
     .eq('type', 'follow_up')
     .not('follow_up_date', 'is', null)
+    .eq('contacts.stage', 'follow_up') // hide once the contact leaves Follow-up
     .order('follow_up_date', { ascending: true });
 
   if (error) {
