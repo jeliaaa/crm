@@ -7,6 +7,7 @@ import { STAGE_ORDER, STAGE_LABELS, stageBadge, stageLabel } from '@/lib/stages'
 export const dynamic = 'force-dynamic';
 
 const PAGE_SIZE = 50;
+const SSGE_CATEGORY = 'Agencies from HOME.SS';
 
 interface SearchParams {
   stage?: string;
@@ -64,7 +65,9 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
   ]);
 
   const cities = Array.from(new Set(cityRows?.map((r) => r.city).filter(Boolean))).sort() as string[];
-  const categories = Array.from(new Set(catRows?.map((r) => r.category).filter(Boolean))).sort() as string[];
+  const categories = Array.from(
+    new Set([...(catRows?.map((r) => r.category).filter(Boolean) ?? []), SSGE_CATEGORY])
+  ).sort() as string[];
 
   const buildQuery = (overrides: Record<string, string>) => {
     const p = { ...searchParams, ...overrides };
