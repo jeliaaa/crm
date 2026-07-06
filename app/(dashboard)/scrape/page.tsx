@@ -20,9 +20,13 @@ type ContactFilter = 'phone' | 'email' | 'phoneOrEmail' | 'none';
 
 type LegalForm = { id: number; abbreviation: string; name: string };
 
-const LIMIT = 100; // companies per request
+type Source = 'geostat' | 'ssge';
+
+const LIMIT = 100; // companies per request (geostat)
+const SSGE_PAGE_SIZE = 20; // agencies per request (ss.ge)
 
 export default function ScrapePage() {
+  const [source, setSource] = useState<Source>('geostat');
   const [categories, setCategories] = useState<Category[]>([]);
   const [selected, setSelected] = useState<Category | null>(null);
   const [legalForms, setLegalForms] = useState<LegalForm[]>([]);
@@ -36,12 +40,23 @@ export default function ScrapePage() {
   const [log, setLog] = useState<string[]>([]);
   const [error, setError] = useState('');
   const abortRef = useRef(false);
+  const ssgeTokenRef = useRef<string | null>(null);
   const router = useRouter();
+
+  const canImport = source === 'ssge' || !!selected;
 
   function resetProgress() {
     setPage(1);
     setTotalPages(null);
     setTotal(null);
+  }
+
+  function changeSource(s: Source) {
+    setSource(s);
+    setError('');
+    setLog([]);
+    ssgeTokenRef.current = null;
+    resetProgress();
   }
 
   useEffect(() => {
@@ -68,6 +83,18 @@ export default function ScrapePage() {
   }
 
   async function doScrape(p: number): Promise<ScrapeResult> {
+    if (source === 'ssge') {
+      const res = await fetch('/api/import-ssge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ page: p, pageSize: SSGE_PAGE_SIZE, token: ssgeTokenRef.current }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      if (data.token) ssgeTokenRef.current = data.token;
+      return data;
+    }
+
     const res = await fetch('/api/scrape', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -102,7 +129,7 @@ export default function ScrapePage() {
   }
 
   async function scrapeOne() {
-    if (!selected || loading) return;
+    if (!canImport || loading) return;
     setLoading(true);
     setError('');
     try {
@@ -116,7 +143,7 @@ export default function ScrapePage() {
   }
 
   async function scrapeAll() {
-    if (!selected || loading) return;
+    if (!canImport || loading) return;
     abortRef.current = false;
     setLoading(true);
     setError('');
@@ -160,10 +187,42 @@ export default function ScrapePage() {
     <div className="p-8 max-w-2xl">
       <h1 className="text-2xl font-bold text-slate-900 mb-1">Import Businesses</h1>
       <p className="text-slate-500 text-sm mb-6">
-        Official data from the Georgian Statistical Business Register, by industry (NACE Rev.2).
+        {source === 'geostat'
+          ? 'Official data from the Georgian Statistical Business Register, by industry (NACE Rev.2).'
+          : 'Real-estate agencies from home.ss.ge (name, phone, email).'}
       </p>
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 space-y-5">
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-2">Source</label>
+          <div className="flex gap-2">
+            {([
+              ['geostat', 'Business Register'],
+              ['ssge', 'ss.ge Agencies'],
+            ] as [Source, string][]).map(([s, label]) => (
+              <button
+                key={s}
+                onClick={() => changeSource(s)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  source === s ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {source === 'ssge' && (
+          <div className="text-sm text-slate-600 bg-slate-50 border border-slate-100 rounded-lg px-4 py-3">
+            Imports all real-estate agencies as category{' '}
+            <span className="font-medium">&ldquo;Agencies from HOME.SS&rdquo;</span>. Each page fetches{' '}
+            {SSGE_PAGE_SIZE} agencies plus their emails, so a full run takes a few minutes.
+          </div>
+        )}
+
+        {source === 'geostat' && (
+        <>
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-2">Industry</label>
           {metaLoading ? (
@@ -246,12 +305,14 @@ export default function ScrapePage() {
             The official register rarely lists phone numbers, so phone-only keeps very few.
           </p>
         </div>
+        </>
+        )}
 
         {total !== null && (
           <div className={`text-sm rounded-lg px-4 py-3 ${done ? 'bg-green-50 text-green-700' : 'bg-blue-50 text-blue-700'}`}>
             {done
-              ? `All ${total.toLocaleString()} businesses imported across ${totalPages} pages.`
-              : `${total.toLocaleString()} businesses in this industry · ${remaining} of ${totalPages} pages left (${LIMIT}/page).`}
+              ? `All ${total.toLocaleString()} ${source === 'ssge' ? 'agencies' : 'businesses'} imported across ${totalPages} pages.`
+              : `${total.toLocaleString()} ${source === 'ssge' ? 'agencies' : 'businesses in this industry'} · ${remaining} of ${totalPages} pages left.`}
           </div>
         )}
 
@@ -262,30 +323,43 @@ export default function ScrapePage() {
         <div className="flex gap-3 flex-wrap">
           <button
             onClick={scrapeOne}
-            disabled={loading || !selected || done}
+            disabled={loading || !canImport || done}
             className="px-5 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-40 transition-colors"
           >
-            {loading ? 'Importing…' : totalPages ? `Import page ${page}` : 'Import first 100'}
+            {loading
+              ? 'Importing…'
+              : totalPages
+              ? `Import page ${page}`
+              : source === 'ssge'
+              ? `Import first ${SSGE_PAGE_SIZE}`
+              : 'Import first 100'}
           </button>
 
           {!done && (
             <button
               onClick={loading ? stop : scrapeAll}
-              disabled={!selected}
+              disabled={!canImport}
               className={`px-5 py-2.5 rounded-lg text-sm font-medium disabled:opacity-40 transition-colors ${
                 loading
                   ? 'bg-red-600 hover:bg-red-700 text-white'
                   : 'bg-slate-800 hover:bg-slate-900 text-white'
               }`}
             >
-              {loading ? 'Stop' : remaining ? `Import all remaining (${remaining} pages)` : 'Import entire industry'}
+              {loading
+                ? 'Stop'
+                : remaining
+                ? `Import all remaining (${remaining} pages)`
+                : source === 'ssge'
+                ? 'Import all agencies'
+                : 'Import entire industry'}
             </button>
           )}
         </div>
 
         <p className="text-xs text-slate-400">
-          The register API is rate-limited (~50 requests/window). &ldquo;Import all&rdquo; automatically
-          pauses and resumes when the limit is hit, so large industries just take a while.
+          {source === 'geostat'
+            ? 'The register API is rate-limited (~50 requests/window). “Import all” automatically pauses and resumes when the limit is hit, so large industries just take a while.'
+            : 'Each agency’s email is fetched individually, so “Import all” runs at a steady pace across all pages — leave it running.'}
         </p>
       </div>
 
