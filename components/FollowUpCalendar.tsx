@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ChevronLeft, ChevronRight, CalendarClock } from 'lucide-react';
 import ContactQuickView from '@/components/ContactQuickView';
 import { stageBadge, stageLabel, STAGE_ORDER, STAGE_LABELS, type Stage } from '@/lib/stages';
+import { CALL_ADJUSTMENTS } from '@/lib/callAdjustments';
 
 type FollowUp = {
   id: string;
@@ -101,6 +102,10 @@ export default function FollowUpCalendar() {
     for (const c of calls) {
       const key = ymd(new Date(c.created_at));
       m.set(key, (m.get(key) ?? 0) + 1);
+    }
+    // apply manual one-off adjustments (calls made before auto-logging)
+    for (const [date, amount] of Object.entries(CALL_ADJUSTMENTS)) {
+      m.set(date, (m.get(date) ?? 0) + amount);
     }
     return m;
   }, [calls]);

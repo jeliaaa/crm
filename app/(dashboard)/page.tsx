@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { stageBadge, stageLabel, STAGE_ORDER, STAGE_LABELS } from '@/lib/stages';
 import { getSnapshots, tbilisiDate } from '@/lib/snapshot';
+import { callAdjustment } from '@/lib/callAdjustments';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,12 +10,14 @@ export default async function DashboardPage() {
   const snapshots = await getSnapshots(2).catch(() => []);
 
   // Calls today = status changes since the start of the Tbilisi day.
-  const startOfToday = `${tbilisiDate()}T00:00:00+04:00`;
-  const { count: callsToday } = await supabase
+  const today = tbilisiDate();
+  const startOfToday = `${today}T00:00:00+04:00`;
+  const { count: callsTodayRaw } = await supabase
     .from('contact_activities')
     .select('*', { count: 'exact', head: true })
     .eq('type', 'status_change')
     .gte('created_at', startOfToday);
+  const callsToday = (callsTodayRaw ?? 0) + callAdjustment(today);
 
   const latest = snapshots[0];
   const prev = snapshots[1];
