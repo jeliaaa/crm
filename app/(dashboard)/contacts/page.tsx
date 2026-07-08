@@ -2,6 +2,12 @@ import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import DeleteAllButton from '@/components/DeleteAllButton';
 import ContactQuickView from '@/components/ContactQuickView';
+import {
+  SelectionProvider,
+  SelectCheckbox,
+  SelectAllCheckbox,
+  BulkDeleteButton,
+} from '@/components/ContactSelection';
 import { STAGE_ORDER, STAGE_LABELS, stageBadge, stageLabel } from '@/lib/stages';
 
 export const dynamic = 'force-dynamic';
@@ -123,12 +129,14 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
 
   return (
     <div className="p-8">
+    <SelectionProvider allIds={contacts?.map((c) => c.id) ?? []}>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-slate-900">
           Contacts{' '}
           <span className="text-slate-400 text-lg font-normal">({count?.toLocaleString() ?? 0})</span>
         </h1>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          <BulkDeleteButton />
           <DeleteAllButton />
           <Link
             href="/scrape"
@@ -203,6 +211,9 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
               {['Name', 'ID №', 'Head', 'Phone', 'Email', 'Website', 'Address', 'City', 'Region', 'Industry', 'Activity', 'Ownership', 'Size', 'Est.', 'Stage'].map((h) => (
                 <th key={h} className="text-left px-4 py-3 text-slate-500 font-medium">{h}</th>
               ))}
+              <th className="px-3 py-3 text-right">
+                <SelectAllCheckbox />
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -247,11 +258,14 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
                     {stageLabel(c.stage)}
                   </span>
                 </td>
+                <td className="px-3 py-3 text-right">
+                  <SelectCheckbox id={c.id} />
+                </td>
               </tr>
             ))}
             {!contacts?.length && (
               <tr>
-                <td colSpan={16} className="px-6 py-12 text-center text-slate-400">
+                <td colSpan={17} className="px-6 py-12 text-center text-slate-400">
                   No contacts found.{' '}
                   {!searchParams.q && !searchParams.stage && !searchParams.city && !searchParams.category && !searchParams.contact ? (
                     <Link href="/scrape" className="text-indigo-600 hover:underline">Start scraping →</Link>
@@ -266,6 +280,7 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
       </div>
 
       {pagination && <div className="mt-4">{pagination}</div>}
+    </SelectionProvider>
     </div>
   );
 }
