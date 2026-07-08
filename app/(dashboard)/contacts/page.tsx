@@ -59,15 +59,30 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
     );
   }
 
-  const [{ data: cityRows }, { data: catRows }] = await Promise.all([
-    supabase.from('contacts').select('city').not('city', 'is', null).limit(200),
-    supabase.from('contacts').select('category').not('category', 'is', null).limit(200),
+  const [catRes, cityRes] = await Promise.all([
+    supabase.rpc('distinct_categories'),
+    supabase.rpc('distinct_cities'),
   ]);
 
-  const cities = Array.from(new Set(cityRows?.map((r) => r.city).filter(Boolean))).sort() as string[];
-  const categories = Array.from(
-    new Set([...(catRows?.map((r) => r.category).filter(Boolean) ?? []), SSGE_CATEGORY])
-  ).sort() as string[];
+  // Fall back to a (larger) sample if the DISTINCT functions aren't installed.
+  async function sampleColumn(col: 'category' | 'city') {
+    const { data } = await supabase
+      .from('contacts')
+      .select(col)
+      .not(col, 'is', null)
+      .limit(2000);
+    return (data ?? []).map((r) => (r as Record<string, string>)[col]).filter(Boolean);
+  }
+
+  const catValues = catRes.error
+    ? await sampleColumn('category')
+    : (catRes.data as { value: string }[]).map((r) => r.value);
+  const cityValues = cityRes.error
+    ? await sampleColumn('city')
+    : (cityRes.data as { value: string }[]).map((r) => r.value);
+
+  const cities = Array.from(new Set(cityValues.filter(Boolean))).sort() as string[];
+  const categories = Array.from(new Set([...catValues.filter(Boolean), SSGE_CATEGORY])).sort() as string[];
 
   const buildQuery = (overrides: Record<string, string>) => {
     const p = { ...searchParams, ...overrides };
