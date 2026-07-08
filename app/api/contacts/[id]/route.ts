@@ -19,6 +19,19 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     Object.entries(body).filter(([k]) => allowed.includes(k))
   );
 
+  // If the stage is changing, capture the previous value so we can log the
+  // status change (a "call") — this covers the contact detail page and the
+  // Kanban board, which both PATCH here.
+  let fromStage: string | null = null;
+  if (typeof patch.stage === 'string') {
+    const { data: current } = await supabase
+      .from('contacts')
+      .select('stage')
+      .eq('id', params.id)
+      .single();
+    fromStage = current?.stage ?? null;
+  }
+
   const { data, error } = await supabase
     .from('contacts')
     .update(patch)
@@ -27,6 +40,16 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  if (typeof patch.stage === 'string' && patch.stage !== fromStage) {
+    await supabase.from('contact_activities').insert({
+      contact_id: params.id,
+      type: 'status_change',
+      from_stage: fromStage,
+      to_stage: patch.stage,
+    });
+  }
+
   return NextResponse.json(data);
 }
 

@@ -36,9 +36,12 @@ function ymd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+type Call = { id: string; to_stage: string; created_at: string };
+
 export default function FollowUpCalendar() {
   const [followUps, setFollowUps] = useState<FollowUp[]>([]);
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
+  const [calls, setCalls] = useState<Call[]>([]);
   const [loading, setLoading] = useState(true);
   const [snapping, setSnapping] = useState(false);
   const [error, setError] = useState('');
@@ -52,14 +55,16 @@ export default function FollowUpCalendar() {
     return Promise.all([
       fetch('/api/follow-ups').then((r) => r.json()),
       fetch('/api/snapshots').then((r) => r.json()),
+      fetch('/api/calls').then((r) => r.json()),
     ])
-      .then(([fu, sn]) => {
+      .then(([fu, sn, ca]) => {
         if (fu.error) setError(fu.error);
         else {
           setError('');
           setFollowUps(fu.followUps ?? []);
         }
         setSnapshots(sn.snapshots ?? []);
+        setCalls(ca.calls ?? []);
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -89,6 +94,16 @@ export default function FollowUpCalendar() {
     }
     return m;
   }, [followUps]);
+
+  // date string -> number of calls (status changes) made that day
+  const callsByDate = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const c of calls) {
+      const key = ymd(new Date(c.created_at));
+      m.set(key, (m.get(key) ?? 0) + 1);
+    }
+    return m;
+  }, [calls]);
 
   // For each snapshot day, the difference vs the previous snapshot — i.e. the
   // net movement per stage in the 24h ending at that day's 18:00 snapshot.
@@ -142,6 +157,7 @@ export default function FollowUpCalendar() {
   const selectedItems = byDate.get(selected) ?? [];
   const selectedDelta = deltaByDate.get(selected);
   const hasSnapshot = selectedDelta !== undefined;
+  const selectedCalls = callsByDate.get(selected) ?? 0;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -175,6 +191,7 @@ export default function FollowUpCalendar() {
             if (!date) return <div key={i} />;
             const key = ymd(date);
             const count = byDate.get(key)?.length ?? 0;
+            const callCount = callsByDate.get(key) ?? 0;
             const isToday = key === todayStr;
             const isSelected = key === selected;
             const isPast = key < todayStr;
@@ -188,9 +205,18 @@ export default function FollowUpCalendar() {
                     : 'border-transparent hover:bg-slate-50'
                 } ${isToday ? 'font-bold text-indigo-600' : 'text-slate-700'}`}
               >
+                {callCount > 0 && (
+                  <span
+                    title={`${callCount} call${callCount === 1 ? '' : 's'}`}
+                    className="absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full text-[10px] font-semibold flex items-center justify-center bg-emerald-500 text-white"
+                  >
+                    {callCount}
+                  </span>
+                )}
                 <span>{date.getDate()}</span>
                 {count > 0 && (
                   <span
+                    title={`${count} follow-up${count === 1 ? '' : 's'}`}
                     className={`absolute bottom-1 min-w-[16px] h-4 px-1 rounded-full text-[10px] font-semibold flex items-center justify-center text-white ${
                       isPast ? 'bg-red-500' : 'bg-indigo-500'
                     }`}
@@ -221,6 +247,12 @@ export default function FollowUpCalendar() {
             day: 'numeric',
           })}
         </h2>
+
+        {/* Calls made (status changes) that day */}
+        <div className="mt-3 mb-4 rounded-lg bg-emerald-50 border border-emerald-100 p-3 flex items-baseline justify-between">
+          <span className="text-xs font-medium text-emerald-700">Calls made</span>
+          <span className="text-2xl font-bold text-emerald-700">{selectedCalls}</span>
+        </div>
 
         {/* 24h change per stage, from the 18:00 snapshot difference */}
         <div className="mt-3 mb-4 rounded-lg bg-slate-50 border border-slate-100 p-3">

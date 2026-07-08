@@ -1,12 +1,21 @@
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { stageBadge, stageLabel, STAGE_ORDER, STAGE_LABELS } from '@/lib/stages';
-import { getSnapshots } from '@/lib/snapshot';
+import { getSnapshots, tbilisiDate } from '@/lib/snapshot';
 
 export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage() {
   const snapshots = await getSnapshots(2).catch(() => []);
+
+  // Calls today = status changes since the start of the Tbilisi day.
+  const startOfToday = `${tbilisiDate()}T00:00:00+04:00`;
+  const { count: callsToday } = await supabase
+    .from('contact_activities')
+    .select('*', { count: 'exact', head: true })
+    .eq('type', 'status_change')
+    .gte('created_at', startOfToday);
+
   const latest = snapshots[0];
   const prev = snapshots[1];
   const delta = latest
@@ -44,6 +53,19 @@ export default async function DashboardPage() {
   return (
     <div className="p-8">
       <h1 className="text-2xl font-bold text-slate-900 mb-6">Dashboard</h1>
+
+      <div className="bg-emerald-600 rounded-xl p-5 shadow-sm mb-6 flex items-center justify-between">
+        <div>
+          <p className="text-emerald-100 text-sm font-medium">Calls today</p>
+          <p className="text-white/70 text-xs mt-0.5">Status changes made today</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-4xl font-bold text-white">{(callsToday ?? 0).toLocaleString()}</span>
+          <Link href="/calendar" className="text-xs text-emerald-100 hover:text-white underline">
+            Calendar →
+          </Link>
+        </div>
+      </div>
 
       <div className="grid grid-cols-5 gap-4 mb-8">
         {stats.map((s) => (
