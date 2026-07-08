@@ -1,9 +1,23 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 
-type Category = { code: string; name: string };
+type Activity = {
+  id: number;
+  code: string;
+  name: string;
+  typeId: number; // 1 section, 3 division, 4 group, 5 class, 6 subclass
+  parentId: number | null;
+};
+
+const LEVEL_LABEL: Record<number, string> = {
+  1: 'Industry (section)',
+  3: 'Division',
+  4: 'Group',
+  5: 'Class',
+  6: 'Subclass',
+};
 
 type ScrapeResult = {
   scraped: number;
@@ -27,8 +41,8 @@ const SSGE_PAGE_SIZE = 20; // agencies per request (ss.ge)
 
 export default function ScrapePage() {
   const [source, setSource] = useState<Source>('geostat');
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [selected, setSelected] = useState<Category | null>(null);
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [chain, setChain] = useState<Activity[]>([]); // section → … → deepest
   const [legalForms, setLegalForms] = useState<LegalForm[]>([]);
   const [selectedForms, setSelectedForms] = useState<number[]>([]);
   const [page, setPage] = useState(1);
@@ -43,12 +57,47 @@ export default function ScrapePage() {
   const ssgeTokenRef = useRef<string | null>(null);
   const router = useRouter();
 
-  const canImport = source === 'ssge' || !!selected;
+  const canImport = source === 'ssge' || chain.length > 0;
+
+  // parentId -> child activities (parentId null = top-level sections)
+  const childrenByParent = useMemo(() => {
+    const m = new Map<number | null, Activity[]>();
+    for (const a of activities) {
+      const key = a.parentId;
+      if (!m.has(key)) m.set(key, []);
+      m.get(key)!.push(a);
+    }
+    Array.from(m.values()).forEach((list) =>
+      list.sort((x, y) => x.code.localeCompare(y.code, undefined, { numeric: true }))
+    );
+    return m;
+  }, [activities]);
+
+  // The chain of drill-down selects to render: one per chosen level, plus the
+  // next level's options while the previous level is selected.
+  const levels = useMemo(() => {
+    const out: { index: number; options: Activity[] }[] = [];
+    for (let i = 0; ; i++) {
+      if (i > 0 && !chain[i - 1]) break;
+      const parentId = i === 0 ? null : chain[i - 1].id;
+      const options = childrenByParent.get(parentId) ?? [];
+      if (options.length === 0) break;
+      out.push({ index: i, options });
+      if (!chain[i]) break; // this level not chosen yet → stop here
+    }
+    return out;
+  }, [chain, childrenByParent]);
 
   function resetProgress() {
     setPage(1);
     setTotalPages(null);
     setTotal(null);
+  }
+
+  // Rebuild the drill-down chain up to `level`, appending the chosen activity.
+  function selectAtLevel(level: number, activity: Activity | null) {
+    setChain((prev) => (activity ? [...prev.slice(0, level), activity] : prev.slice(0, level)));
+    resetProgress();
   }
 
   function changeSource(s: Source) {
@@ -63,12 +112,13 @@ export default function ScrapePage() {
     setMetaLoading(true);
     fetch('/api/scrape/meta')
       .then((r) => r.json())
-      .then(({ categories: cats, legalForms: forms, error: metaError }) => {
-        setCategories(cats ?? []);
+      .then(({ activities: acts, legalForms: forms, error: metaError }) => {
+        setActivities(acts ?? []);
         setLegalForms(forms ?? []);
-        if (cats?.[0]) setSelected(cats[0]);
-        if (metaError && !cats?.length) {
-          setError(`Could not load industries: ${metaError}`);
+        const firstSection = (acts ?? []).find((a: Activity) => a.typeId === 1);
+        if (firstSection) setChain([firstSection]);
+        if (metaError && !acts?.length) {
+          setError(`Could not load activities: ${metaError}`);
         }
       })
       .catch((e) => setError(`Could not reach /api/scrape/meta: ${e.message}`))
@@ -99,8 +149,8 @@ export default function ScrapePage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        code: selected?.code,
-        sectionName: selected?.name,
+        code: chain[chain.length - 1]?.code,
+        sectionName: chain[0]?.name,
         page: p,
         limit: LIMIT,
         contactFilter,
@@ -223,25 +273,43 @@ export default function ScrapePage() {
 
         {source === 'geostat' && (
         <>
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">Industry</label>
+        <div className="space-y-3">
+          <label className="block text-sm font-medium text-slate-700">Activity (NACE Rev.2)</label>
           {metaLoading ? (
             <div className="h-10 bg-slate-100 rounded-lg animate-pulse" />
           ) : (
-            <select
-              value={selected?.code ?? ''}
-              onChange={(e) => {
-                const c = categories.find((i) => i.code === e.target.value);
-                if (c) { setSelected(c); resetProgress(); }
-              }}
-              className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
-            >
-              {categories.map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.code} — {c.name}
-                </option>
-              ))}
-            </select>
+            levels.map(({ index, options }) => (
+              <div key={index}>
+                <label className="block text-xs text-slate-400 mb-1">
+                  {LEVEL_LABEL[options[0].typeId] ?? 'Activity'}
+                </label>
+                <select
+                  value={chain[index]?.id ?? ''}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    selectAtLevel(index, val ? options.find((o) => o.id === Number(val)) ?? null : null);
+                  }}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                >
+                  {index > 0 && (
+                    <option value="">
+                      — all of {chain[index - 1].code} —
+                    </option>
+                  )}
+                  {options.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.code} — {o.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ))
+          )}
+          {chain.length > 0 && (
+            <p className="text-xs text-slate-400">
+              Importing code <span className="font-mono">{chain[chain.length - 1].code}</span> ·
+              stored under industry <span className="font-medium">{chain[0].name}</span>
+            </p>
           )}
         </div>
 

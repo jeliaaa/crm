@@ -31,6 +31,40 @@ export type Category = {
   name: string; // localized section name
 };
 
+// A node in the NACE activity tree (section → division → group → class → subclass).
+export type Activity = {
+  id: number;
+  code: string;
+  name: string;
+  typeId: number; // 1 section, 3 division, 4 group, 5 class, 6 subclass
+  parentId: number | null;
+};
+
+export async function getActivities(lang: Lang = 'en'): Promise<Activity[]> {
+  const { data } = await http.get(`${API}/activities?lang=${lang}`);
+  if (!Array.isArray(data)) return [];
+  return data
+    .filter(
+      (a: { Activity_Code?: string; Activity_Type_ID?: number }) =>
+        !!a.Activity_Code && !!a.Activity_Type_ID
+    )
+    .map(
+      (a: {
+        ID: number;
+        Activity_Code: string;
+        Activity_Name: string;
+        Activity_Type_ID: number;
+        Parent_ID: number | null;
+      }) => ({
+        id: a.ID,
+        code: a.Activity_Code,
+        name: a.Activity_Name,
+        typeId: a.Activity_Type_ID,
+        parentId: a.Parent_ID ?? null,
+      })
+    );
+}
+
 export type LegalForm = {
   id: number;
   abbreviation: string;
