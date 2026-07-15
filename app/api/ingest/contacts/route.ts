@@ -63,6 +63,9 @@ export async function POST(request: NextRequest) {
 
   const rows = (contacts as ContactPayload[]).map(toRow);
 
+  // Contacts arriving via this endpoint are always tagged as BREVO.
+  rows.forEach((r) => { r.category = 'BREVO'; });
+
   // Dedupe on source_url when the caller supplies one; otherwise just insert.
   const withUrl = rows.filter((r) => typeof r.source_url === 'string' && r.source_url);
   const withoutUrl = rows.filter((r) => !(typeof r.source_url === 'string' && r.source_url));
