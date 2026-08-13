@@ -14,7 +14,7 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   const body = await request.json();
-  const allowed = ['stage', 'notes', 'phone', 'email', 'website', 'address'];
+  const allowed = ['stage', 'notes', 'phone', 'email', 'website', 'address', 'action_required'];
   const patch = Object.fromEntries(
     Object.entries(body).filter(([k]) => allowed.includes(k))
   );
@@ -30,6 +30,12 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       .eq('id', params.id)
       .single();
     fromStage = current?.stage ?? null;
+
+    // Moving a contact off "Called + answered" is the action itself, so the
+    // red flag clears with it.
+    if (patch.stage !== 'called_answered' && patch.action_required === undefined) {
+      patch.action_required = false;
+    }
   }
 
   const { data, error } = await supabase

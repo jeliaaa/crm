@@ -1,12 +1,14 @@
 'use client';
 
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, Users, Kanban, Download, LogOut, CalendarClock, CalendarDays } from 'lucide-react';
+import { LayoutDashboard, Users, Kanban, Download, LogOut, CalendarClock, CalendarDays, PhoneCall } from 'lucide-react';
 
 const NAV = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard, exact: true },
   { href: '/contacts', label: 'Contacts', icon: Users },
+  { href: '/called-answered', label: 'Called + answered', icon: PhoneCall, badge: true },
   { href: '/follow-ups', label: 'Follow-ups', icon: CalendarClock },
   { href: '/calendar', label: 'Calendar', icon: CalendarDays },
   { href: '/pipeline', label: 'Pipeline', icon: Kanban },
@@ -16,6 +18,24 @@ const NAV = [
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const [actionCount, setActionCount] = useState(0);
+
+  // Calls land via webhook, so the count has to come to us — refresh on
+  // navigation and every half minute.
+  const refreshCount = useCallback(async () => {
+    try {
+      const res = await fetch('/api/action-required', { cache: 'no-store' });
+      if (!res.ok) return;
+      const { count } = await res.json();
+      setActionCount(typeof count === 'number' ? count : 0);
+    } catch { /* offline — leave the last known count */ }
+  }, []);
+
+  useEffect(() => {
+    refreshCount();
+    const timer = setInterval(refreshCount, 30_000);
+    return () => clearInterval(timer);
+  }, [refreshCount, pathname]);
 
   async function logout() {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -32,8 +52,9 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 p-3 space-y-0.5">
-        {NAV.map(({ href, label, icon: Icon, exact }) => {
+        {NAV.map(({ href, label, icon: Icon, exact, badge }) => {
           const active = exact ? pathname === href : pathname.startsWith(href);
+          const showDot = badge && actionCount > 0;
           return (
             <Link
               key={href}
@@ -45,7 +66,15 @@ export default function Sidebar() {
               }`}
             >
               <Icon size={15} />
-              {label}
+              <span className="flex-1">{label}</span>
+              {showDot && (
+                <span
+                  title={`${actionCount} contact${actionCount === 1 ? '' : 's'} need an action`}
+                  className="min-w-[1.15rem] h-[1.15rem] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none"
+                >
+                  {actionCount > 99 ? '99+' : actionCount}
+                </span>
+              )}
             </Link>
           );
         })}

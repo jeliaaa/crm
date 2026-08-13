@@ -21,13 +21,9 @@ type FollowUp = {
   } | null;
 };
 
-type Snapshot = {
+// One count per stage, so a new stage can't drift out of sync here.
+type Snapshot = Record<Stage, number> & {
   snapshot_date: string;
-  lead: number;
-  follow_up: number;
-  done: number;
-  lost: number;
-  didnt_answer: number;
   total: number;
 };
 

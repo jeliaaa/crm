@@ -47,9 +47,11 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       return NextResponse.json({ ok: true, unchanged: true });
     }
 
+    // Moving a contact off "Called + answered" is the action itself, so the
+    // red flag clears with it.
     const { error: updErr } = await supabase
       .from('contacts')
-      .update({ stage: toStage })
+      .update({ stage: toStage, ...(toStage === 'called_answered' ? {} : { action_required: false }) })
       .eq('id', params.id);
     if (updErr) return NextResponse.json({ error: updErr.message }, { status: 500 });
 

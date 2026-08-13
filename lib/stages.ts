@@ -1,11 +1,12 @@
 // Single source of truth for pipeline statuses.
 
-export type Stage = 'lead' | 'follow_up' | 'done' | 'lost' | 'didnt_answer';
+export type Stage = 'lead' | 'called_answered' | 'follow_up' | 'done' | 'lost' | 'didnt_answer';
 
-export const STAGE_ORDER: Stage[] = ['lead', 'follow_up', 'done', 'lost', 'didnt_answer'];
+export const STAGE_ORDER: Stage[] = ['lead', 'called_answered', 'follow_up', 'done', 'lost', 'didnt_answer'];
 
 export const STAGE_LABELS: Record<Stage, string> = {
   lead: 'Lead',
+  called_answered: 'Called + answered',
   follow_up: 'Follow-up',
   done: 'Done',
   lost: 'Lost',
@@ -15,6 +16,7 @@ export const STAGE_LABELS: Record<Stage, string> = {
 // Compact badge styles (table cells, chips).
 export const STAGE_BADGE: Record<Stage, string> = {
   lead: 'bg-blue-100 text-blue-700',
+  called_answered: 'bg-emerald-100 text-emerald-700',
   follow_up: 'bg-amber-100 text-amber-700',
   done: 'bg-green-100 text-green-700',
   lost: 'bg-red-100 text-red-700',
@@ -24,6 +26,7 @@ export const STAGE_BADGE: Record<Stage, string> = {
 // Bordered styles (selectable buttons).
 export const STAGE_BADGE_BORDER: Record<Stage, string> = {
   lead: 'bg-blue-100 text-blue-700 border-blue-200',
+  called_answered: 'bg-emerald-100 text-emerald-700 border-emerald-200',
   follow_up: 'bg-amber-100 text-amber-700 border-amber-200',
   done: 'bg-green-100 text-green-700 border-green-200',
   lost: 'bg-red-100 text-red-700 border-red-200',
@@ -33,6 +36,7 @@ export const STAGE_BADGE_BORDER: Record<Stage, string> = {
 // Kanban column styles.
 export const STAGE_COLUMN: Record<Stage, { header: string; bg: string }> = {
   lead: { header: 'text-blue-600', bg: 'bg-blue-50' },
+  called_answered: { header: 'text-emerald-600', bg: 'bg-emerald-50' },
   follow_up: { header: 'text-amber-600', bg: 'bg-amber-50' },
   done: { header: 'text-green-600', bg: 'bg-green-50' },
   lost: { header: 'text-red-600', bg: 'bg-red-50' },

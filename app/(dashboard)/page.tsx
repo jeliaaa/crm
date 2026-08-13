@@ -28,12 +28,14 @@ export default async function DashboardPage() {
   const [
     { count: total },
     { count: leads },
+    { count: calledAnswered },
     { count: followUp },
     { count: done },
     { count: lost },
   ] = await Promise.all([
     supabase.from('contacts').select('*', { count: 'exact', head: true }),
     supabase.from('contacts').select('*', { count: 'exact', head: true }).eq('stage', 'lead'),
+    supabase.from('contacts').select('*', { count: 'exact', head: true }).eq('stage', 'called_answered'),
     supabase.from('contacts').select('*', { count: 'exact', head: true }).eq('stage', 'follow_up'),
     supabase.from('contacts').select('*', { count: 'exact', head: true }).eq('stage', 'done'),
     supabase.from('contacts').select('*', { count: 'exact', head: true }).eq('stage', 'lost'),
@@ -45,9 +47,10 @@ export default async function DashboardPage() {
     .order('created_at', { ascending: false })
     .limit(10);
 
-  const stats = [
+  const stats: { label: string; value: number; color: string; href?: string }[] = [
     { label: 'Total Contacts', value: total ?? 0, color: 'bg-indigo-500' },
     { label: 'Leads', value: leads ?? 0, color: 'bg-blue-500' },
+    { label: 'Called + answered', value: calledAnswered ?? 0, color: 'bg-emerald-500', href: '/called-answered' },
     { label: 'Follow-up', value: followUp ?? 0, color: 'bg-amber-500' },
     { label: 'Done', value: done ?? 0, color: 'bg-green-500' },
     { label: 'Lost', value: lost ?? 0, color: 'bg-red-500' },
@@ -70,14 +73,24 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-5 gap-4 mb-8">
-        {stats.map((s) => (
-          <div key={s.label} className="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
-            <div className={`w-8 h-8 ${s.color} rounded-lg mb-3`} />
-            <p className="text-2xl font-bold text-slate-900">{s.value.toLocaleString()}</p>
-            <p className="text-xs text-slate-500 mt-1">{s.label}</p>
-          </div>
-        ))}
+      <div className="grid grid-cols-6 gap-4 mb-8">
+        {stats.map((s) => {
+          const body = (
+            <>
+              <div className={`w-8 h-8 ${s.color} rounded-lg mb-3`} />
+              <p className="text-2xl font-bold text-slate-900">{s.value.toLocaleString()}</p>
+              <p className="text-xs text-slate-500 mt-1">{s.label}</p>
+            </>
+          );
+          const className = 'bg-white rounded-xl p-5 shadow-sm border border-slate-100';
+          return s.href ? (
+            <Link key={s.label} href={s.href} className={`${className} block hover:border-indigo-200 transition-colors`}>
+              {body}
+            </Link>
+          ) : (
+            <div key={s.label} className={className}>{body}</div>
+          );
+        })}
       </div>
 
       <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-100 mb-8">

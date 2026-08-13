@@ -9,6 +9,7 @@ import { STAGE_ORDER } from './stages';
 export type Snapshot = {
   snapshot_date: string; // YYYY-MM-DD (Tbilisi)
   lead: number;
+  called_answered: number;
   follow_up: number;
   done: number;
   lost: number;
@@ -35,6 +36,7 @@ export async function recordSnapshot(): Promise<Snapshot> {
   const row: Snapshot = {
     snapshot_date: tbilisiDate(),
     lead: byStage.lead,
+    called_answered: byStage.called_answered,
     follow_up: byStage.follow_up,
     done: byStage.done,
     lost: byStage.lost,
@@ -51,12 +53,23 @@ export async function recordSnapshot(): Promise<Snapshot> {
 }
 
 export async function getSnapshots(limit = 90): Promise<Snapshot[]> {
+  // select('*') rather than a column list: rows taken before a stage existed
+  // (or before its migration ran) simply come back without that key, and the
+  // zero-fill below keeps the day-over-day arithmetic from turning into NaN.
   const { data, error } = await supabase
     .from('stage_snapshots')
-    .select('snapshot_date, lead, follow_up, done, lost, didnt_answer, total')
+    .select('*')
     .order('snapshot_date', { ascending: false })
     .limit(limit);
 
   if (error) throw new Error(error.message);
-  return (data ?? []) as Snapshot[];
+
+  return (data ?? []).map((row) => ({
+    ...(Object.fromEntries(STAGE_ORDER.map((s) => [s, Number(row[s] ?? 0)])) as Record<
+      (typeof STAGE_ORDER)[number],
+      number
+    >),
+    snapshot_date: row.snapshot_date,
+    total: Number(row.total ?? 0),
+  }));
 }
