@@ -9,6 +9,7 @@ import {
   BulkDeleteButton,
 } from '@/components/ContactSelection';
 import { STAGE_ORDER, STAGE_LABELS, stageBadge, stageLabel } from '@/lib/stages';
+import { distinctValues } from '@/lib/distinctValues';
 
 export const dynamic = 'force-dynamic';
 
@@ -65,30 +66,12 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
     );
   }
 
-  const [catRes, cityRes] = await Promise.all([
-    supabase.rpc('distinct_categories'),
-    supabase.rpc('distinct_cities'),
+  const [catValues, cities] = await Promise.all([
+    distinctValues('category'),
+    distinctValues('city'),
   ]);
 
-  // Fall back to a (larger) sample if the DISTINCT functions aren't installed.
-  async function sampleColumn(col: 'category' | 'city') {
-    const { data } = await supabase
-      .from('contacts')
-      .select(col)
-      .not(col, 'is', null)
-      .limit(2000);
-    return (data ?? []).map((r) => (r as Record<string, string>)[col]).filter(Boolean);
-  }
-
-  const catValues = catRes.error
-    ? await sampleColumn('category')
-    : (catRes.data as { value: string }[]).map((r) => r.value);
-  const cityValues = cityRes.error
-    ? await sampleColumn('city')
-    : (cityRes.data as { value: string }[]).map((r) => r.value);
-
-  const cities = Array.from(new Set(cityValues.filter(Boolean))).sort() as string[];
-  const categories = Array.from(new Set([...catValues.filter(Boolean), SSGE_CATEGORY])).sort() as string[];
+  const categories = Array.from(new Set([...catValues, SSGE_CATEGORY])).sort();
 
   const buildQuery = (overrides: Record<string, string>) => {
     const p = { ...searchParams, ...overrides };
@@ -138,6 +121,12 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
         <div className="flex gap-2 items-center">
           <BulkDeleteButton />
           <DeleteAllButton />
+          <Link
+            href="/contacts/new"
+            className="px-4 py-2 bg-white text-slate-700 border border-slate-200 rounded-lg text-sm font-medium hover:bg-slate-50"
+          >
+            + Add contact
+          </Link>
           <Link
             href="/scrape"
             className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700"
