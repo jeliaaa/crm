@@ -1,21 +1,16 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { getCallCounts } from '@/lib/callCounts';
 
 export const dynamic = 'force-dynamic';
 
-// Every status change counts as a "call". Return the recent ones so the
-// calendar can tally calls per day.
+// Calls per day for the calendar. Bucketed server-side into Tbilisi days so
+// the calendar and the dashboard tile can't disagree about where midnight is.
 export async function GET() {
-  const since = new Date();
-  since.setDate(since.getDate() - 180);
-
-  const { data, error } = await supabase
-    .from('contact_activities')
-    .select('id, to_stage, created_at')
-    .eq('type', 'status_change')
-    .gte('created_at', since.toISOString())
-    .order('created_at', { ascending: false });
-
-  if (error) return NextResponse.json({ error: error.message, calls: [] }, { status: 500 });
-  return NextResponse.json({ calls: data ?? [] });
+  try {
+    const { byDate, logStartDate } = await getCallCounts();
+    return NextResponse.json({ callsByDate: byDate, logStartDate });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : 'Could not load calls';
+    return NextResponse.json({ error: message, callsByDate: {} }, { status: 500 });
+  }
 }

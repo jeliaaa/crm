@@ -2,22 +2,17 @@ import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { stageBadge, stageLabel, STAGE_ORDER, STAGE_LABELS } from '@/lib/stages';
 import { getSnapshots, tbilisiDate } from '@/lib/snapshot';
-import { callAdjustment } from '@/lib/callAdjustments';
+import { getCallCounts } from '@/lib/callCounts';
 
 export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage() {
   const snapshots = await getSnapshots(2).catch(() => []);
 
-  // Calls today = status changes since the start of the Tbilisi day.
+  // Calls today = outgoing calls the phone system logged this Tbilisi day.
   const today = tbilisiDate();
-  const startOfToday = `${today}T00:00:00+04:00`;
-  const { count: callsTodayRaw } = await supabase
-    .from('contact_activities')
-    .select('*', { count: 'exact', head: true })
-    .eq('type', 'status_change')
-    .gte('created_at', startOfToday);
-  const callsToday = (callsTodayRaw ?? 0) + callAdjustment(today);
+  const { byDate } = await getCallCounts(2);
+  const callsToday = byDate[today] ?? 0;
 
   const latest = snapshots[0];
   const prev = snapshots[1];
@@ -63,7 +58,7 @@ export default async function DashboardPage() {
       <div className="bg-emerald-600 rounded-xl p-5 shadow-sm mb-6 flex items-center justify-between">
         <div>
           <p className="text-emerald-100 text-sm font-medium">Calls today</p>
-          <p className="text-white/70 text-xs mt-0.5">Status changes made today</p>
+          <p className="text-white/70 text-xs mt-0.5">Outgoing calls logged by the phone system</p>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-4xl font-bold text-white">{(callsToday ?? 0).toLocaleString()}</span>

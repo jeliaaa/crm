@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { ChevronLeft, ChevronRight, CalendarClock } from 'lucide-react';
 import ContactQuickView from '@/components/ContactQuickView';
 import { stageBadge, stageLabel, STAGE_ORDER, STAGE_LABELS, type Stage } from '@/lib/stages';
-import { CALL_ADJUSTMENTS } from '@/lib/callAdjustments';
 
 type FollowUp = {
   id: string;
@@ -33,12 +32,11 @@ function ymd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-type Call = { id: string; to_stage: string; created_at: string };
-
 export default function FollowUpCalendar() {
   const [followUps, setFollowUps] = useState<FollowUp[]>([]);
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
-  const [calls, setCalls] = useState<Call[]>([]);
+  // Tbilisi YYYY-MM-DD -> calls made; bucketed by /api/calls.
+  const [callTotals, setCallTotals] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [snapping, setSnapping] = useState(false);
   const [error, setError] = useState('');
@@ -61,7 +59,7 @@ export default function FollowUpCalendar() {
           setFollowUps(fu.followUps ?? []);
         }
         setSnapshots(sn.snapshots ?? []);
-        setCalls(ca.calls ?? []);
+        setCallTotals(ca.callsByDate ?? {});
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -92,19 +90,7 @@ export default function FollowUpCalendar() {
     return m;
   }, [followUps]);
 
-  // date string -> number of calls (status changes) made that day
-  const callsByDate = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const c of calls) {
-      const key = ymd(new Date(c.created_at));
-      m.set(key, (m.get(key) ?? 0) + 1);
-    }
-    // apply manual one-off adjustments (calls made before auto-logging)
-    for (const [date, amount] of Object.entries(CALL_ADJUSTMENTS)) {
-      m.set(date, (m.get(date) ?? 0) + amount);
-    }
-    return m;
-  }, [calls]);
+  const callsByDate = useMemo(() => new Map(Object.entries(callTotals)), [callTotals]);
 
   // For each snapshot day, the difference vs the previous snapshot — i.e. the
   // net movement per stage in the 24h ending at that day's 18:00 snapshot.
@@ -249,7 +235,7 @@ export default function FollowUpCalendar() {
           })}
         </h2>
 
-        {/* Calls made (status changes) that day */}
+        {/* Outgoing calls the phone system logged that day */}
         <div className="mt-3 mb-4 rounded-lg bg-emerald-50 border border-emerald-100 p-3 flex items-baseline justify-between">
           <span className="text-xs font-medium text-emerald-700">Calls made</span>
           <span className="text-2xl font-bold text-emerald-700">{selectedCalls}</span>

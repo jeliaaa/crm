@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { phoneKey, isUsablePhoneKey } from '@/lib/phone';
+import { normalizeRecordingUrl } from '@/lib/recordingUrl';
 import { STAGE_LABELS, type Stage } from '@/lib/stages';
 
 export const dynamic = 'force-dynamic';
@@ -180,7 +181,7 @@ export async function POST(request: NextRequest) {
   const src = str(payload.src);
   const direction = str(payload.dir);
   const status = str(payload.status);
-  const recording = str(payload.rec);
+  const recording = normalizeRecordingUrl(str(payload.rec));
   const uniqueId = str(payload.unique_id);
   const duration = Number.parseInt(str(payload.dur) ?? '0', 10) || 0;
 

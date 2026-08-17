@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import ContactQuickView from '@/components/ContactQuickView';
 import MarkHandledButton from '@/components/MarkHandledButton';
+import { normalizeRecordingUrl, isPlayableRecording } from '@/lib/recordingUrl';
 import { PhoneCall, PlayCircle } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -157,6 +158,8 @@ export default async function CalledAnsweredPage({
         <div className="bg-white rounded-xl border border-slate-100 shadow-sm divide-y divide-slate-100">
           {contacts.map((c) => {
             const call = lastCall.get(c.id);
+            // Rows stored before the URL was normalised on ingest are still encoded.
+            const recording = normalizeRecordingUrl(call?.recording_url);
             const otherNumber = call
               ? call.direction === 'out'
                 ? call.dst
@@ -195,9 +198,9 @@ export default async function CalledAnsweredPage({
                   <p className="text-slate-400">{formatDuration(call?.duration ?? null)}</p>
                 </div>
 
-                {call?.recording_url && (
+                {isPlayableRecording(recording) && (
                   <a
-                    href={call.recording_url}
+                    href={recording!}
                     target="_blank"
                     rel="noopener noreferrer"
                     title="Listen to the recording"
