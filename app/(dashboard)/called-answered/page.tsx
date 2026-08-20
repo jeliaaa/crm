@@ -113,6 +113,8 @@ export default async function CalledAnsweredPage({
   const tabs = [
     { label: 'Needs action', href: '/called-answered', active: pendingOnly, count: pendingCount ?? 0 },
     { label: 'All answered', href: '/called-answered?filter=all', active: !pendingOnly },
+    // The raw PBX log, contacts or no contacts — see app/(dashboard)/calls.
+    { label: 'All the calls', href: '/calls', active: false },
   ];
 
   return (

@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, Users, Kanban, Download, LogOut, CalendarClock, CalendarDays, PhoneCall } from 'lucide-react';
+import { LayoutDashboard, Users, Kanban, Download, LogOut, CalendarClock, CalendarDays, PhoneCall, ListOrdered } from 'lucide-react';
 
 const NAV = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard, exact: true },
   { href: '/contacts', label: 'Contacts', icon: Users },
   { href: '/called-answered', label: 'Called + answered', icon: PhoneCall, badge: true },
+  { href: '/calls', label: 'All the calls', icon: ListOrdered },
   { href: '/follow-ups', label: 'Follow-ups', icon: CalendarClock },
   { href: '/calendar', label: 'Calendar', icon: CalendarDays },
   { href: '/pipeline', label: 'Pipeline', icon: Kanban },
