@@ -15,6 +15,7 @@ export const dynamic = 'force-dynamic';
 
 const PAGE_SIZE = 50;
 const SSGE_CATEGORY = 'Agencies from HOME.SS';
+const YELL_LAW_CATEGORY = 'LAW COMPANIES';
 
 interface SearchParams {
   stage?: string;
@@ -71,7 +72,7 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
     distinctValues('city'),
   ]);
 
-  const categories = Array.from(new Set([...catValues, SSGE_CATEGORY])).sort();
+  const categories = Array.from(new Set([...catValues, SSGE_CATEGORY, YELL_LAW_CATEGORY])).sort();
 
   const buildQuery = (overrides: Record<string, string>) => {
     const p = { ...searchParams, ...overrides };

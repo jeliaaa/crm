@@ -11,6 +11,12 @@ type Activity = {
   parentId: number | null;
 };
 
+const UNIT: Record<Source, string> = {
+  geostat: 'businesses',
+  ssge: 'agencies',
+  yell: 'law companies',
+};
+
 const LEVEL_LABEL: Record<number, string> = {
   1: 'Industry (section)',
   3: 'Division',
@@ -34,10 +40,12 @@ type ContactFilter = 'phone' | 'email' | 'phoneOrEmail' | 'none';
 
 type LegalForm = { id: number; abbreviation: string; name: string };
 
-type Source = 'geostat' | 'ssge';
+type Source = 'geostat' | 'ssge' | 'yell';
 
 const LIMIT = 100; // companies per request (geostat)
 const SSGE_PAGE_SIZE = 20; // agencies per request (ss.ge)
+const YELL_PAGE_SIZE = 25; // companies per listing page (yell.ge, fixed by the site)
+const YELL_LAW_CATEGORY = 'LAW COMPANIES';
 
 export default function ScrapePage() {
   const [source, setSource] = useState<Source>('geostat');
@@ -57,7 +65,7 @@ export default function ScrapePage() {
   const ssgeTokenRef = useRef<string | null>(null);
   const router = useRouter();
 
-  const canImport = source === 'ssge' || chain.length > 0;
+  const canImport = source !== 'geostat' || chain.length > 0;
 
   // parentId -> child activities (parentId null = top-level sections)
   const childrenByParent = useMemo(() => {
@@ -143,6 +151,16 @@ export default function ScrapePage() {
       const data = await res.json();
       if (data.token) ssgeTokenRef.current = data.token;
       return data;
+    }
+
+    if (source === 'yell') {
+      const res = await fetch('/api/import-yell', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ page: p }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
     }
 
     const res = await fetch('/api/scrape', {
@@ -239,7 +257,9 @@ export default function ScrapePage() {
       <p className="text-slate-500 text-sm mb-6">
         {source === 'geostat'
           ? 'Official data from the Georgian Statistical Business Register, by industry (NACE Rev.2).'
-          : 'Real-estate agencies from home.ss.ge (name, phone, email).'}
+          : source === 'ssge'
+          ? 'Real-estate agencies from home.ss.ge (name, phone, email).'
+          : 'Law companies from the yell.ge directory (name, phones, email, website, address).'}
       </p>
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 space-y-5">
@@ -249,6 +269,7 @@ export default function ScrapePage() {
             {([
               ['geostat', 'Business Register'],
               ['ssge', 'ss.ge Agencies'],
+              ['yell', 'yell.ge Law Companies'],
             ] as [Source, string][]).map(([s, label]) => (
               <button
                 key={s}
@@ -268,6 +289,22 @@ export default function ScrapePage() {
             Imports all real-estate agencies as category{' '}
             <span className="font-medium">&ldquo;Agencies from HOME.SS&rdquo;</span>. Each page fetches{' '}
             {SSGE_PAGE_SIZE} agencies plus their emails, so a full run takes a few minutes.
+          </div>
+        )}
+
+        {source === 'yell' && (
+          <div className="text-sm text-slate-600 bg-slate-50 border border-slate-100 rounded-lg px-4 py-3">
+            Imports the{' '}
+            <a
+              href="https://www.yell.ge/companies.php?lan=geo&rub=157"
+              target="_blank"
+              rel="noreferrer"
+              className="text-indigo-600 hover:underline"
+            >
+              იურიდიული მომსახურება
+            </a>{' '}
+            rubric as category <span className="font-medium">&ldquo;{YELL_LAW_CATEGORY}&rdquo;</span>. One request per
+            listing page of {YELL_PAGE_SIZE} companies.
           </div>
         )}
 
@@ -379,8 +416,8 @@ export default function ScrapePage() {
         {total !== null && (
           <div className={`text-sm rounded-lg px-4 py-3 ${done ? 'bg-green-50 text-green-700' : 'bg-blue-50 text-blue-700'}`}>
             {done
-              ? `All ${total.toLocaleString()} ${source === 'ssge' ? 'agencies' : 'businesses'} imported across ${totalPages} pages.`
-              : `${total.toLocaleString()} ${source === 'ssge' ? 'agencies' : 'businesses in this industry'} · ${remaining} of ${totalPages} pages left.`}
+              ? `All ${total.toLocaleString()} ${UNIT[source]} imported across ${totalPages} pages.`
+              : `${total.toLocaleString()} ${source === 'geostat' ? 'businesses in this industry' : UNIT[source]} · ${remaining} of ${totalPages} pages left.`}
           </div>
         )}
 
@@ -400,6 +437,8 @@ export default function ScrapePage() {
               ? `Import page ${page}`
               : source === 'ssge'
               ? `Import first ${SSGE_PAGE_SIZE}`
+              : source === 'yell'
+              ? `Import first ${YELL_PAGE_SIZE}`
               : 'Import first 100'}
           </button>
 
@@ -419,6 +458,8 @@ export default function ScrapePage() {
                 ? `Import all remaining (${remaining} pages)`
                 : source === 'ssge'
                 ? 'Import all agencies'
+                : source === 'yell'
+                ? 'Import all law companies'
                 : 'Import entire industry'}
             </button>
           )}
@@ -427,7 +468,9 @@ export default function ScrapePage() {
         <p className="text-xs text-slate-400">
           {source === 'geostat'
             ? 'The register API is rate-limited (~50 requests/window). “Import all” automatically pauses and resumes when the limit is hit, so large industries just take a while.'
-            : 'Each agency’s email is fetched individually, so “Import all” runs at a steady pace across all pages — leave it running.'}
+            : source === 'ssge'
+            ? 'Each agency’s email is fetched individually, so “Import all” runs at a steady pace across all pages — leave it running.'
+            : 'Companies already imported are skipped; empty fields on existing rows get back-filled, so re-running is safe.'}
         </p>
       </div>
 
