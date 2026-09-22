@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import GlobalSearch from './GlobalSearch';
 import { LayoutDashboard, Users, Kanban, Download, LogOut, CalendarClock, CalendarDays, PhoneCall, ListOrdered } from 'lucide-react';
 
 const NAV = [
@@ -51,6 +52,8 @@ export default function Sidebar() {
         </div>
         <span className="text-white font-semibold text-sm">Georgia CRM</span>
       </div>
+
+      <GlobalSearch />
 
       <nav className="flex-1 p-3 space-y-0.5">
         {NAV.map(({ href, label, icon: Icon, exact, badge }) => {

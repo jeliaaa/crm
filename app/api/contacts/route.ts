@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { STAGE_ORDER } from '@/lib/stages';
 import { phoneKey, isUsablePhoneKey } from '@/lib/phone';
+import { contactSearchGroups } from '@/lib/contactSearch';
 
 // Fields a person can fill in by hand. Everything else on the row is either
 // scraper bookkeeping (stat_id, source_url) or derived.
@@ -45,7 +46,8 @@ export async function GET(request: NextRequest) {
   if (stage) query = query.eq('stage', stage);
   if (city) query = query.ilike('city', `%${city}%`);
   if (category) query = query.ilike('category', `%${category}%`);
-  if (q) query = query.ilike('name', `%${q}%`);
+  // q searches every field on the row, not just the name.
+  for (const group of await contactSearchGroups(q || '')) query = query.or(group);
 
   const { data, count, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

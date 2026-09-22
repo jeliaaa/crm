@@ -10,6 +10,8 @@ import {
 } from '@/components/ContactSelection';
 import { STAGE_ORDER, STAGE_LABELS, stageBadge, stageLabel } from '@/lib/stages';
 import { distinctValues } from '@/lib/distinctValues';
+import { contactSearchGroups } from '@/lib/contactSearch';
+import { Search } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,6 +30,9 @@ interface SearchParams {
 
 export default async function ContactsPage({ searchParams }: { searchParams: SearchParams }) {
   const page = Math.max(1, parseInt(searchParams.page || '1'));
+  // Free-text search runs across every field on the row, so it has to be
+  // resolved before the query is assembled.
+  const search = await contactSearchGroups(searchParams.q || '');
   const from = (page - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
 
@@ -43,7 +48,7 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
   if (searchParams.stage) query = query.eq('stage', searchParams.stage);
   if (searchParams.city) query = query.ilike('city', `%${searchParams.city}%`);
   if (searchParams.category) query = query.ilike('category', `%${searchParams.category}%`);
-  if (searchParams.q) query = query.ilike('name', `%${searchParams.q}%`);
+  for (const group of search) query = query.or(group);
   if (searchParams.contact === 'phone') {
     query = query.not('phone', 'is', null).neq('phone', '');
   } else if (searchParams.contact === 'email') {
@@ -138,12 +143,15 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
       </div>
 
       <form method="GET" className="flex gap-3 mb-6 flex-wrap">
-        <input
-          name="q"
-          defaultValue={searchParams.q}
-          placeholder="Search name…"
-          className="px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
-        />
+        <div className="relative flex-1 min-w-[280px]">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          <input
+            name="q"
+            defaultValue={searchParams.q}
+            placeholder="Search anything — name, phone, email, ID №, address, website, notes…"
+            className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+          />
+        </div>
         <select
           name="stage"
           defaultValue={searchParams.stage || ''}
