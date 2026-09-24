@@ -46,6 +46,11 @@ export default function ContactDetail({ contact }: { contact: Contact }) {
           {contact.established_year && (
             <p className="text-slate-400 text-sm">Est. {contact.established_year}</p>
           )}
+          {contact.created_at && (
+            <p className="text-slate-400 text-sm">
+              Added {new Date(contact.created_at).toLocaleDateString()}
+            </p>
+          )}
         </div>
 
         <div className="p-6 grid grid-cols-2 gap-4 text-sm">

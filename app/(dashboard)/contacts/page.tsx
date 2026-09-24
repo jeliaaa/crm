@@ -39,7 +39,7 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
   let query = supabase
     .from('contacts')
     .select(
-      'id, name, identification_number, head, phone, email, website, address, city, region, category, activity_code, categories, ownership_type, business_size, established_year, stage',
+      'id, name, identification_number, head, phone, email, website, address, city, region, category, activity_code, categories, ownership_type, business_size, established_year, stage, created_at',
       { count: 'exact' }
     )
     .order('created_at', { ascending: false })
@@ -206,7 +206,7 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50">
               <th className="px-3 py-3"></th>
-              {['Name', 'ID №', 'Head', 'Phone', 'Email', 'Website', 'Address', 'City', 'Region', 'Industry', 'Activity', 'Ownership', 'Size', 'Est.', 'Stage'].map((h) => (
+              {['Name', 'ID №', 'Head', 'Phone', 'Email', 'Website', 'Address', 'City', 'Region', 'Industry', 'Activity', 'Ownership', 'Size', 'Est.', 'Stage', 'Added'].map((h) => (
                 <th key={h} className="text-left px-4 py-3 text-slate-500 font-medium">{h}</th>
               ))}
               <th className="px-3 py-3 text-right">
@@ -256,6 +256,9 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
                     {stageLabel(c.stage)}
                   </span>
                 </td>
+                <td className="px-4 py-3 text-slate-500 text-xs">
+                  {c.created_at ? new Date(c.created_at).toLocaleDateString() : '—'}
+                </td>
                 <td className="px-3 py-3 text-right">
                   <SelectCheckbox id={c.id} />
                 </td>
@@ -263,7 +266,7 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
             ))}
             {!contacts?.length && (
               <tr>
-                <td colSpan={17} className="px-6 py-12 text-center text-slate-400">
+                <td colSpan={18} className="px-6 py-12 text-center text-slate-400">
                   No contacts found.{' '}
                   {!searchParams.q && !searchParams.stage && !searchParams.city && !searchParams.category && !searchParams.contact ? (
                     <Link href="/scrape" className="text-indigo-600 hover:underline">Start scraping →</Link>
