@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ChevronLeft, ChevronRight, CalendarClock } from 'lucide-react';
 import ContactQuickView from '@/components/ContactQuickView';
 import { stageBadge, stageLabel, STAGE_ORDER, STAGE_LABELS, type Stage } from '@/lib/stages';
+import { formatPhone } from '@/lib/phone';
 
 type FollowUp = {
   id: string;
@@ -300,7 +301,7 @@ export default function FollowUpCalendar() {
                     )}
                   </div>
                   {f.contacts?.phone && (
-                    <p className="text-xs text-slate-500 font-mono mt-0.5">{f.contacts.phone}</p>
+                    <p className="text-xs text-slate-500 font-mono mt-0.5">{formatPhone(f.contacts.phone)}</p>
                   )}
                   {f.comment && <p className="text-sm text-slate-600 mt-1">{f.comment}</p>}
                 </div>

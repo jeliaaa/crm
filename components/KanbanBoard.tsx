@@ -20,6 +20,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import Link from 'next/link';
 import { STAGE_ORDER, STAGE_LABELS, STAGE_COLUMN, type Stage } from '@/lib/stages';
+import { formatPhone } from '@/lib/phone';
 
 type KanbanContact = {
   id: string;
@@ -65,7 +66,7 @@ function SortableCard({ contact, isDragging }: { contact: KanbanContact; isDragg
         {contact.name}
       </Link>
       {contact.phone && (
-        <p className="text-xs text-slate-500 mt-1 font-mono">{contact.phone}</p>
+        <p className="text-xs text-slate-500 mt-1 font-mono">{formatPhone(contact.phone)}</p>
       )}
       {contact.city && <p className="text-xs text-slate-400 mt-0.5">{contact.city}</p>}
       {contact.category && (

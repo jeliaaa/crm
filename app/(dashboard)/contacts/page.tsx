@@ -11,6 +11,7 @@ import {
 import { STAGE_ORDER, STAGE_LABELS, stageBadge, stageLabel } from '@/lib/stages';
 import { distinctValues } from '@/lib/distinctValues';
 import { contactSearchGroups } from '@/lib/contactSearch';
+import { formatPhone, phoneHref } from '@/lib/phone';
 import { Search } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -228,7 +229,7 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
                 <td className="px-4 py-3 text-slate-600 font-mono text-xs">{c.identification_number || '—'}</td>
                 <td className="px-4 py-3 text-slate-600">{c.head || '—'}</td>
                 <td className="px-4 py-3 text-slate-600 font-mono text-xs">
-                  {c.phone ? <a href={`tel:${c.phone}`} className="hover:text-indigo-600">{c.phone}</a> : '—'}
+                  {c.phone ? <a href={phoneHref(c.phone)} className="hover:text-indigo-600">{formatPhone(c.phone)}</a> : '—'}
                 </td>
                 <td className="px-4 py-3 text-slate-600 text-xs">
                   {c.email ? <a href={`mailto:${c.email}`} className="hover:text-indigo-600">{c.email}</a> : '—'}
