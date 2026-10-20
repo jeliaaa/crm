@@ -10,6 +10,7 @@ import {
   STAGE_BADGE_BORDER,
   type Stage,
 } from '@/lib/stages';
+import { formatPhone } from '@/lib/phone';
 import {
   X,
   AlertCircle,
@@ -141,7 +142,7 @@ export default function ContactQuickView({
                       {contact.identification_number && (
                         <span className="font-mono">{contact.identification_number}</span>
                       )}
-                      {contact.phone && <span>· {contact.phone}</span>}
+                      {contact.phone && <span>· {formatPhone(contact.phone)}</span>}
                       {contact.city && <span>· {contact.city}</span>}
                     </div>
                   )}

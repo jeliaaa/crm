@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import ContactQuickView from '@/components/ContactQuickView';
 import { stageBadge, stageLabel } from '@/lib/stages';
+import { formatPhone } from '@/lib/phone';
 import { CalendarClock } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -117,7 +118,7 @@ export default async function FollowUpsPage() {
                           )}
                         </div>
                         <div className="text-xs text-slate-500 mt-0.5 flex flex-wrap gap-x-3">
-                          {f.contacts?.phone && <span className="font-mono">{f.contacts.phone}</span>}
+                          {f.contacts?.phone && <span className="font-mono">{formatPhone(f.contacts.phone)}</span>}
                           {f.contacts?.email && <span>{f.contacts.email}</span>}
                           {f.contacts?.city && <span>{f.contacts.city}</span>}
                         </div>

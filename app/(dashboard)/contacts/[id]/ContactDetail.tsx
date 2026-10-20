@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Contact } from '@/lib/supabase';
+import { formatPhone, phoneHref } from '@/lib/phone';
 import { STAGE_ORDER, STAGE_LABELS, STAGE_BADGE_BORDER, type Stage } from '@/lib/stages';
 import { ArrowLeft, Phone, Globe, MapPin, Tag, ExternalLink, Hash, User, Building2 } from 'lucide-react';
 
@@ -69,13 +70,13 @@ export default function ContactDetail({ contact }: { contact: Contact }) {
           {contact.phone && (
             <div className="flex items-center gap-2 text-slate-700">
               <Phone size={14} className="text-slate-400 shrink-0" />
-              <a href={`tel:${contact.phone}`} className="hover:text-indigo-600">{contact.phone}</a>
+              <a href={phoneHref(contact.phone)} className="hover:text-indigo-600">{formatPhone(contact.phone)}</a>
             </div>
           )}
           {contact.mobile && contact.mobile !== contact.phone && (
             <div className="flex items-center gap-2 text-slate-700">
               <Phone size={14} className="text-slate-400 shrink-0" />
-              <a href={`tel:${contact.mobile}`} className="hover:text-indigo-600">{contact.mobile}</a>
+              <a href={phoneHref(contact.mobile)} className="hover:text-indigo-600">{formatPhone(contact.mobile)}</a>
             </div>
           )}
           {contact.email && (
