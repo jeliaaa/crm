@@ -11,6 +11,7 @@ import {
 import { STAGE_ORDER, STAGE_LABELS, stageBadge, stageLabel } from '@/lib/stages';
 import { distinctValues } from '@/lib/distinctValues';
 import { contactSearchGroups } from '@/lib/contactSearch';
+import { loadDuplicateInfo, type DuplicateInfo } from '@/lib/duplicates';
 import { Search } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -26,6 +27,52 @@ interface SearchParams {
   q?: string;
   contact?: string; // '', 'phone', 'email', 'phoneOrEmail'
   page?: string;
+}
+
+const shortDate = (iso: string) =>
+  new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+function DuplicateNote({ info }: { info?: DuplicateInfo }) {
+  if (!info) return <span className="text-slate-300">—</span>;
+  const probable = info.others.every((o) => o.strength === 'probable');
+  return (
+    <div className="space-y-1.5">
+      <span
+        className={`inline-block px-2 py-0.5 rounded-full font-medium ${
+          info.isFirst ? 'bg-sky-100 text-sky-700' : 'bg-amber-100 text-amber-800'
+        }`}
+      >
+        {info.isFirst ? 'First record' : 'Duplicate'}
+        {probable ? ' · same name' : ''}
+      </span>
+      {!info.isFirst && (
+        <p className="text-slate-600">
+          First record:{' '}
+          <Link href={`/contacts/${info.first.id}`} className="text-indigo-600 hover:underline">
+            {info.first.name}
+          </Link>{' '}
+          — {shortDate(info.first.createdAt)} ·{' '}
+          <span className={`px-1.5 py-0.5 rounded-full ${stageBadge(info.first.stage)}`}>
+            {stageLabel(info.first.stage)}
+          </span>
+        </p>
+      )}
+      <ul className="text-slate-500 space-y-0.5">
+        {info.others
+          .filter((o) => o.id !== info.first.id)
+          .map((o) => (
+            <li key={o.id}>
+              {info.isFirst ? 'Copy' : 'Also'}:{' '}
+              <Link href={`/contacts/${o.id}`} className="text-indigo-600 hover:underline">
+                {o.name}
+              </Link>{' '}
+              — {shortDate(o.createdAt)} ·{' '}
+              <span className={`px-1.5 py-0.5 rounded-full ${stageBadge(o.stage)}`}>{stageLabel(o.stage)}</span>
+            </li>
+          ))}
+      </ul>
+    </div>
+  );
 }
 
 export default async function ContactsPage({ searchParams }: { searchParams: SearchParams }) {
@@ -71,6 +118,9 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
       </div>
     );
   }
+
+  // Flag (never remove) rows that repeat a company already in the CRM.
+  const duplicateInfo = await loadDuplicateInfo(contacts ?? []);
 
   const [catValues, cities] = await Promise.all([
     distinctValues('category'),
@@ -206,7 +256,7 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50">
               <th className="px-3 py-3"></th>
-              {['Name', 'ID №', 'Head', 'Phone', 'Email', 'Website', 'Address', 'City', 'Region', 'Industry', 'Activity', 'Ownership', 'Size', 'Est.', 'Stage', 'Added'].map((h) => (
+              {['Name', 'Duplicate', 'ID №', 'Head', 'Phone', 'Email', 'Website', 'Address', 'City', 'Region', 'Industry', 'Activity', 'Ownership', 'Size', 'Est.', 'Stage', 'Added'].map((h) => (
                 <th key={h} className="text-left px-4 py-3 text-slate-500 font-medium">{h}</th>
               ))}
               <th className="px-3 py-3 text-right">
@@ -224,6 +274,9 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
                   <Link href={`/contacts/${c.id}`} className="font-medium text-indigo-600 hover:underline">
                     {c.name}
                   </Link>
+                </td>
+                <td className="px-4 py-3 text-xs whitespace-normal min-w-[260px]">
+                  <DuplicateNote info={duplicateInfo.get(c.id)} />
                 </td>
                 <td className="px-4 py-3 text-slate-600 font-mono text-xs">{c.identification_number || '—'}</td>
                 <td className="px-4 py-3 text-slate-600">{c.head || '—'}</td>
@@ -266,7 +319,7 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
             ))}
             {!contacts?.length && (
               <tr>
-                <td colSpan={18} className="px-6 py-12 text-center text-slate-400">
+                <td colSpan={19} className="px-6 py-12 text-center text-slate-400">
                   No contacts found.{' '}
                   {!searchParams.q && !searchParams.stage && !searchParams.city && !searchParams.category && !searchParams.contact ? (
                     <Link href="/scrape" className="text-indigo-600 hover:underline">Start scraping →</Link>
