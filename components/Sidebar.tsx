@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import GlobalSearch from './GlobalSearch';
-import { LayoutDashboard, Users, Kanban, Download, LogOut, CalendarClock, CalendarDays, PhoneCall, ListOrdered } from 'lucide-react';
+import { LayoutDashboard, Users, Kanban, Download, LogOut, CalendarClock, CalendarDays, PhoneCall, ListOrdered, Receipt } from 'lucide-react';
 
 const NAV = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard, exact: true },
@@ -14,6 +14,7 @@ const NAV = [
   { href: '/follow-ups', label: 'Follow-ups', icon: CalendarClock },
   { href: '/calendar', label: 'Calendar', icon: CalendarDays },
   { href: '/pipeline', label: 'Pipeline', icon: Kanban },
+  { href: '/invoices', label: 'Create an invoice', icon: Receipt },
   { href: '/scrape', label: 'Scrape', icon: Download },
 ];
 
