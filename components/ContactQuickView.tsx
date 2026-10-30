@@ -11,7 +11,13 @@ import {
   type Stage,
 } from '@/lib/stages';
 import { formatPhone } from '@/lib/phone';
+import type { InvoiceFormat, InvoiceLang } from '@/lib/invoice';
 import {
+  FileText,
+  FileType2,
+  Loader2,
+  Plus,
+  Trash2,
   X,
   AlertCircle,
   CalendarClock,
@@ -39,7 +45,22 @@ type ContactInfo = {
   identification_number: string | null;
   city: string | null;
   category: string | null;
+  address: string | null;
 };
+
+type InvLine = { documents: string; pages: string; languagePair: string; price: string };
+const emptyInvLine = (): InvLine => ({ documents: '1', pages: '1', languagePair: '', price: '' });
+const INV_LANGS: { value: InvoiceLang; label: string }[] = [
+  { value: 'ka', label: 'ქართული' },
+  { value: 'en', label: 'English' },
+  { value: 'both', label: 'Both' },
+];
+const toNum = (v: string) => {
+  const n = parseFloat(v.replace(',', '.'));
+  return Number.isFinite(n) ? n : 0;
+};
+const invInput =
+  'w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500';
 
 export default function ContactQuickView({
   contactId,
@@ -59,6 +80,76 @@ export default function ContactQuickView({
   const [followUpDate, setFollowUpDate] = useState('');
   const [followUpNote, setFollowUpNote] = useState('');
   const router = useRouter();
+
+  const [invLines, setInvLines] = useState<InvLine[]>([emptyInvLine()]);
+  const [invLang, setInvLang] = useState<InvoiceLang>('ka');
+  const [invDue, setInvDue] = useState('');
+  const [invNotes, setInvNotes] = useState('');
+  const [invBusy, setInvBusy] = useState<InvoiceFormat | null>(null);
+  const [invError, setInvError] = useState('');
+
+  const setInvLine = (i: number, patch: Partial<InvLine>) =>
+    setInvLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
+  const invTotal = invLines.reduce((s, l) => s + toNum(l.price), 0);
+
+  async function generateInvoice(format: InvoiceFormat) {
+    if (!contact) return;
+    setInvError('');
+    setInvBusy(format);
+    try {
+      const d = new Date();
+      const p = (n: number) => String(n).padStart(2, '0');
+      const id = (contact.identification_number || '').replace(/\D/g, '');
+      const res = await fetch('/api/invoices/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lang: invLang,
+          format,
+          invoice: {
+            number: `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`,
+            date: d.toISOString().slice(0, 10),
+            dueDate: invDue,
+            clientType: id.length === 11 ? 'individual' : 'company',
+            client: {
+              name: contact.name,
+              idNumber: contact.identification_number || '',
+              address: [contact.address, contact.city]
+                .filter(Boolean)
+                .filter((v, i, a) => a.indexOf(v) === i)
+                .join(', '),
+              email: contact.email || '',
+              phone: contact.phone || '',
+            },
+            notes: invNotes,
+            items: invLines.map((l) => ({
+              documents: toNum(l.documents),
+              pages: toNum(l.pages),
+              languagePair: l.languagePair,
+              price: toNum(l.price),
+            })),
+          },
+        }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error || `Failed (${res.status})`);
+      }
+      const blob = await res.blob();
+      const fname =
+        /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') || '')?.[1] || `invoice.${format}`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fname;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setInvError((e as Error).message);
+    } finally {
+      setInvBusy(null);
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -230,6 +321,81 @@ export default function ContactQuickView({
                       Post
                     </button>
                   </div>
+                </div>
+
+                {/* Create invoice */}
+                <div>
+                  <p className="text-sm font-medium text-slate-700 mb-2 flex items-center gap-1.5">
+                    <FileText size={14} className="text-slate-400" /> Create invoice
+                  </p>
+                  <div className="space-y-2">
+                    {invLines.map((l, i) => (
+                      <div key={i} className="grid grid-cols-[3.5rem_3.5rem_1fr_5.5rem_2rem] gap-2 items-center">
+                        <input className={invInput} inputMode="numeric" title="Documents" aria-label="Documents" value={l.documents} onChange={(e) => setInvLine(i, { documents: e.target.value })} />
+                        <input className={invInput} inputMode="numeric" title="Pages" aria-label="Pages" value={l.pages} onChange={(e) => setInvLine(i, { pages: e.target.value })} />
+                        <input className={invInput} aria-label="Language pair" placeholder="ქართული → English" value={l.languagePair} onChange={(e) => setInvLine(i, { languagePair: e.target.value })} />
+                        <input className={invInput} inputMode="decimal" aria-label="Price" placeholder="GEL" value={l.price} onChange={(e) => setInvLine(i, { price: e.target.value })} />
+                        <button
+                          type="button"
+                          disabled={invLines.length === 1}
+                          onClick={() => setInvLines((ls) => ls.filter((_, idx) => idx !== i))}
+                          className="p-1.5 text-slate-400 hover:text-red-600 disabled:opacity-30"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+                    <p className="text-xs text-slate-400">Documents · Pages · Language pair · Final price (GEL)</p>
+                  </div>
+                  <div className="flex items-center justify-between mt-2">
+                    <button
+                      type="button"
+                      onClick={() => setInvLines((ls) => [...ls, emptyInvLine()])}
+                      className="inline-flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-800"
+                    >
+                      <Plus size={14} /> Add line
+                    </button>
+                    <p className="text-sm text-slate-500">
+                      Total <span className="ml-1 font-semibold text-slate-900">{invTotal.toFixed(2)} GEL</span>
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 mt-3">
+                    <div>
+                      <label className="block text-xs text-slate-500 mb-1">Due date</label>
+                      <input type="date" className={invInput} value={invDue} onChange={(e) => setInvDue(e.target.value)} />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-500 mb-1">Language</label>
+                      <div className="inline-flex w-full rounded-lg border border-slate-200 overflow-hidden">
+                        {INV_LANGS.map((o) => (
+                          <button
+                            key={o.value}
+                            type="button"
+                            onClick={() => setInvLang(o.value)}
+                            className={`flex-1 px-2 py-2 text-sm ${invLang === o.value ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
+                          >
+                            {o.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <input className={`${invInput} mt-2`} placeholder="Notes (optional)" value={invNotes} onChange={(e) => setInvNotes(e.target.value)} />
+                  <div className="flex gap-2 mt-3">
+                    {(['pdf', 'docx'] as InvoiceFormat[]).map((f) => (
+                      <button
+                        key={f}
+                        type="button"
+                        disabled={invBusy !== null || !contact}
+                        onClick={() => generateInvoice(f)}
+                        className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-slate-900 text-white hover:bg-slate-700 disabled:opacity-60"
+                      >
+                        {invBusy === f ? <Loader2 size={14} className="animate-spin" /> : f === 'pdf' ? <FileText size={14} /> : <FileType2 size={14} />}
+                        Download .{f}
+                      </button>
+                    ))}
+                  </div>
+                  {invError && <p className="mt-2 text-sm text-red-600">{invError}</p>}
                 </div>
 
                 {/* History */}

@@ -5,7 +5,7 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
   const [{ data: contact, error: cErr }, { data: activities, error: aErr }] = await Promise.all([
     supabase
       .from('contacts')
-      .select('id, name, stage, phone, email, identification_number, city, category')
+      .select('id, name, stage, phone, email, identification_number, city, category, address')
       .eq('id', params.id)
       .single(),
     supabase
