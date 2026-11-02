@@ -48,8 +48,8 @@ type ContactInfo = {
   address: string | null;
 };
 
-type InvLine = { documents: string; pages: string; languagePair: string; price: string };
-const emptyInvLine = (): InvLine => ({ documents: '1', pages: '1', languagePair: '', price: '' });
+type InvLine = { documentType: string; notarized: boolean; languagePair: string; pages: string; price: string };
+const emptyInvLine = (): InvLine => ({ documentType: '', notarized: true, languagePair: '', pages: '1', price: '' });
 const INV_LANGS: { value: InvoiceLang; label: string }[] = [
   { value: 'ka', label: 'ქართული' },
   { value: 'en', label: 'English' },
@@ -99,7 +99,6 @@ export default function ContactQuickView({
     try {
       const d = new Date();
       const p = (n: number) => String(n).padStart(2, '0');
-      const id = (contact.identification_number || '').replace(/\D/g, '');
       const res = await fetch('/api/invoices/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -110,10 +109,8 @@ export default function ContactQuickView({
             number: `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`,
             date: d.toISOString().slice(0, 10),
             dueDate: invDue,
-            clientType: id.length === 11 ? 'individual' : 'company',
             client: {
               name: contact.name,
-              idNumber: contact.identification_number || '',
               address: [contact.address, contact.city]
                 .filter(Boolean)
                 .filter((v, i, a) => a.indexOf(v) === i)
@@ -123,9 +120,10 @@ export default function ContactQuickView({
             },
             notes: invNotes,
             items: invLines.map((l) => ({
-              documents: toNum(l.documents),
-              pages: toNum(l.pages),
+              documentType: l.documentType,
+              notarized: l.notarized,
               languagePair: l.languagePair,
+              pages: toNum(l.pages),
               price: toNum(l.price),
             })),
           },
@@ -330,11 +328,9 @@ export default function ContactQuickView({
                   </p>
                   <div className="space-y-2">
                     {invLines.map((l, i) => (
-                      <div key={i} className="grid grid-cols-[3.5rem_3.5rem_1fr_5.5rem_2rem] gap-2 items-center">
-                        <input className={invInput} inputMode="numeric" title="Documents" aria-label="Documents" value={l.documents} onChange={(e) => setInvLine(i, { documents: e.target.value })} />
-                        <input className={invInput} inputMode="numeric" title="Pages" aria-label="Pages" value={l.pages} onChange={(e) => setInvLine(i, { pages: e.target.value })} />
-                        <input className={invInput} aria-label="Language pair" placeholder="ქართული → English" value={l.languagePair} onChange={(e) => setInvLine(i, { languagePair: e.target.value })} />
-                        <input className={invInput} inputMode="decimal" aria-label="Price" placeholder="GEL" value={l.price} onChange={(e) => setInvLine(i, { price: e.target.value })} />
+                      <div key={i} className="grid grid-cols-[1fr_1fr_2rem] gap-2 items-center border border-slate-100 rounded-lg p-2">
+                        <input className={invInput} aria-label="Document type" placeholder="Document type, e.g. წესდება" value={l.documentType} onChange={(e) => setInvLine(i, { documentType: e.target.value })} />
+                        <input className={invInput} aria-label="Language pair" placeholder="ინგლისური → ქართული" value={l.languagePair} onChange={(e) => setInvLine(i, { languagePair: e.target.value })} />
                         <button
                           type="button"
                           disabled={invLines.length === 1}
@@ -343,9 +339,29 @@ export default function ContactQuickView({
                         >
                           <Trash2 size={14} />
                         </button>
+                        <div className="col-span-2 grid grid-cols-[4.5rem_5.5rem_1fr] gap-2 items-center">
+                          <input className={invInput} inputMode="numeric" title="Pages" aria-label="Pages" placeholder="Pages" value={l.pages} onChange={(e) => setInvLine(i, { pages: e.target.value })} />
+                          <input className={invInput} inputMode="decimal" aria-label="Price" placeholder="₾ price" value={l.price} onChange={(e) => setInvLine(i, { price: e.target.value })} />
+                          <div className="flex items-center gap-3 justify-end text-xs text-slate-600">
+                            {[
+                              { v: true, text: 'Notarized' },
+                              { v: false, text: 'No notary' },
+                            ].map((o) => (
+                              <label key={String(o.v)} className="inline-flex items-center gap-1 cursor-pointer">
+                                <input
+                                  type="radio"
+                                  name={`inv-notary-${i}`}
+                                  checked={l.notarized === o.v}
+                                  onChange={() => setInvLine(i, { notarized: o.v })}
+                                  className="accent-indigo-600"
+                                />
+                                {o.text}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
                       </div>
                     ))}
-                    <p className="text-xs text-slate-400">Documents · Pages · Language pair · Final price (GEL)</p>
                   </div>
                   <div className="flex items-center justify-between mt-2">
                     <button
@@ -356,7 +372,7 @@ export default function ContactQuickView({
                       <Plus size={14} /> Add line
                     </button>
                     <p className="text-sm text-slate-500">
-                      Total <span className="ml-1 font-semibold text-slate-900">{invTotal.toFixed(2)} GEL</span>
+                      Total <span className="ml-1 font-semibold text-slate-900">{invTotal.toFixed(2)} ₾</span>
                     </p>
                   </div>
                   <div className="grid grid-cols-2 gap-2 mt-3">

@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { FileText, FileType2, Loader2, Plus, Search, Trash2, X } from 'lucide-react';
-import type { ClientType, InvoiceFormat, InvoiceLang } from '@/lib/invoice';
+import { ChevronDown, FileText, FileType2, Loader2, Plus, Search, Settings, Trash2, X } from 'lucide-react';
+import { DEFAULT_SETTINGS } from '@/lib/invoice';
+import type { InvoiceFormat, InvoiceLang, InvoiceSettings } from '@/lib/invoice';
 
 // Invoice builder. Everything is typed by hand; the only shortcut is the
 // client search, which fills the client block from a CRM contact.
@@ -19,16 +20,30 @@ type Hit = {
   city: string | null;
 };
 
-type Line = { documents: string; pages: string; languagePair: string; price: string };
+type Line = { documentType: string; notarized: boolean; languagePair: string; pages: string; price: string };
 
 const today = () => new Date().toISOString().slice(0, 10);
-const emptyLine = (): Line => ({ documents: '1', pages: '1', languagePair: '', price: '' });
-const emptyClient = { name: '', idNumber: '', address: '', email: '', phone: '' };
+const emptyLine = (): Line => ({ documentType: '', notarized: true, languagePair: '', pages: '1', price: '' });
+const emptyClient = { name: '', address: '', email: '', phone: '' };
 
 const LANGS: { value: InvoiceLang; label: string }[] = [
   { value: 'ka', label: 'ქართული' },
   { value: 'en', label: 'English' },
   { value: 'both', label: 'Both' },
+];
+
+const SETTING_FIELDS: [keyof InvoiceSettings, string][] = [
+  ['nameKa', 'Name (ქართული)'],
+  ['nameEn', 'Name (English)'],
+  ['addressKa', 'Address (ქართული)'],
+  ['addressEn', 'Address (English)'],
+  ['email', 'Email'],
+  ['phone', 'Phone'],
+  ['bankName', 'Bank'],
+  ['swift', 'SWIFT'],
+  ['iban', 'IBAN'],
+  ['directorKa', 'Director (ქართული)'],
+  ['directorEn', 'Director (English)'],
 ];
 
 const input =
@@ -44,7 +59,6 @@ export default function InvoiceForm() {
   const [number, setNumber] = useState('');
   const [date, setDate] = useState(today);
   const [dueDate, setDueDate] = useState('');
-  const [clientType, setClientType] = useState<ClientType>('company');
   const [client, setClient] = useState(emptyClient);
   const [lines, setLines] = useState<Line[]>([emptyLine()]);
   const [notes, setNotes] = useState('');
@@ -59,6 +73,46 @@ export default function InvoiceForm() {
     const p = (n: number) => String(n).padStart(2, '0');
     setNumber(`${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`);
   }, []);
+
+  // ── provider settings (stored server-side, defaults until saved) ─────────
+  const [settings, setSettings] = useState<InvoiceSettings>(DEFAULT_SETTINGS);
+  const [draft, setDraft] = useState<InvoiceSettings>(DEFAULT_SETTINGS);
+  const [showSettings, setShowSettings] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [settingsMsg, setSettingsMsg] = useState('');
+
+  useEffect(() => {
+    fetch('/api/invoices/settings')
+      .then((r) => r.json())
+      .then((j) => {
+        if (j.data) {
+          setSettings(j.data);
+          setDraft(j.data);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  async function saveSettings() {
+    setSaving(true);
+    setSettingsMsg('');
+    try {
+      const res = await fetch('/api/invoices/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(draft),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || `Failed (${res.status})`);
+      setSettings(json.data);
+      setDraft(json.data);
+      setSettingsMsg('Saved');
+    } catch (e) {
+      setSettingsMsg((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
 
   // ── client search ───────────────────────────────────────────────────────
   const [query, setQuery] = useState('');
@@ -103,13 +157,8 @@ export default function InvoiceForm() {
   }, []);
 
   function pick(h: Hit) {
-    const id = (h.identification_number || '').replace(/\D/g, '');
-    // 11 digits is a Georgian personal number, 9 a company tax code.
-    if (id.length === 11) setClientType('individual');
-    else if (id.length === 9) setClientType('company');
     setClient({
       name: h.name || '',
-      idNumber: h.identification_number || '',
       address: [h.address, h.city].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(', '),
       email: h.email || '',
       phone: h.mobile || h.phone || '',
@@ -152,13 +201,13 @@ export default function InvoiceForm() {
             number,
             date,
             dueDate,
-            clientType,
             client,
             notes,
             items: lines.map((l) => ({
-              documents: toNumber(l.documents),
-              pages: toNumber(l.pages),
+              documentType: l.documentType,
+              notarized: l.notarized,
               languagePair: l.languagePair,
+              pages: toNumber(l.pages),
               price: toNumber(l.price),
             })),
           },
@@ -183,8 +232,6 @@ export default function InvoiceForm() {
     }
   }
 
-  const idLabel = clientType === 'company' ? 'Tax ID (საიდენტიფიკაციო კოდი)' : 'Personal ID (პირადი ნომერი)';
-
   return (
     <div className="space-y-6 max-w-4xl">
       {/* Provider + meta */}
@@ -192,8 +239,8 @@ export default function InvoiceForm() {
         <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
           <div>
             <p className="text-xs font-medium text-slate-500">Service provider</p>
-            <p className="text-sm font-semibold text-slate-900">შპს თარგმნის სახლი</p>
-            <p className="text-xs text-slate-500">Translation House LLC</p>
+            <p className="text-sm font-semibold text-slate-900">{settings.nameKa}</p>
+            <p className="text-xs text-slate-500">{settings.nameEn}</p>
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div>
@@ -210,6 +257,44 @@ export default function InvoiceForm() {
             </div>
           </div>
         </div>
+      </section>
+
+      {/* Provider settings */}
+      <section className="bg-white border border-slate-200 rounded-xl">
+        <button
+          type="button"
+          onClick={() => setShowSettings((v) => !v)}
+          className="w-full flex items-center gap-2 px-5 py-3 text-sm font-semibold text-slate-900"
+        >
+          <Settings size={15} className="text-slate-400" /> Provider &amp; bank details
+          <ChevronDown size={15} className={`ml-auto text-slate-400 transition-transform ${showSettings ? 'rotate-180' : ''}`} />
+        </button>
+        {showSettings && (
+          <div className="px-5 pb-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {SETTING_FIELDS.map(([key, text]) => (
+                <div key={key}>
+                  <label className={labelCls}>{text}</label>
+                  <input className={input} value={draft[key]} onChange={(e) => setDraft({ ...draft, [key]: e.target.value })} />
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center gap-3 mt-4">
+              <button
+                type="button"
+                disabled={saving}
+                onClick={saveSettings}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-slate-900 text-white hover:bg-slate-700 disabled:opacity-60"
+              >
+                {saving && <Loader2 size={14} className="animate-spin" />} Save details
+              </button>
+              <button type="button" onClick={() => setDraft(DEFAULT_SETTINGS)} className="text-sm text-slate-500 hover:text-slate-900">
+                Reset to defaults
+              </button>
+              {settingsMsg && <span className="text-sm text-slate-500">{settingsMsg}</span>}
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Client */}
@@ -254,20 +339,8 @@ export default function InvoiceForm() {
           )}
         </div>
 
-        <div className="flex gap-2 mb-4">
-          {(['company', 'individual'] as ClientType[]).map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setClientType(t)}
-              className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
-                clientType === t ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-              }`}
-            >
-              {t === 'company' ? 'Company' : 'Individual'}
-            </button>
-          ))}
-          {client.name && (
+        {client.name && (
+          <div className="flex mb-4">
             <button
               type="button"
               onClick={() => setClient(emptyClient)}
@@ -275,17 +348,13 @@ export default function InvoiceForm() {
             >
               <X size={12} /> Clear client
             </button>
-          )}
-        </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className={labelCls}>{clientType === 'company' ? 'Company name' : 'Full name'}</label>
+          <div className="sm:col-span-2">
+            <label className={labelCls}>Client name</label>
             <input className={input} value={client.name} onChange={(e) => setClient({ ...client, name: e.target.value })} />
-          </div>
-          <div>
-            <label className={labelCls}>{idLabel}</label>
-            <input className={input} value={client.idNumber} onChange={(e) => setClient({ ...client, idNumber: e.target.value })} />
           </div>
           <div className="sm:col-span-2">
             <label className={labelCls}>Address</label>
@@ -305,35 +374,63 @@ export default function InvoiceForm() {
       {/* Services */}
       <section className="bg-white border border-slate-200 rounded-xl p-5">
         <h2 className="text-sm font-semibold text-slate-900 mb-4">Translation services</h2>
-        <div className="hidden sm:grid grid-cols-[4.5rem_4.5rem_1fr_8rem_2rem] gap-2 mb-1">
-          <span className={labelCls}>Documents</span>
-          <span className={labelCls}>Pages</span>
-          <span className={labelCls}>Language pair</span>
-          <span className={labelCls}>Final price (GEL)</span>
-          <span />
-        </div>
-        <div className="space-y-2">
+        <div className="space-y-3">
           {lines.map((l, i) => (
-            <div key={i} className="grid grid-cols-2 sm:grid-cols-[4.5rem_4.5rem_1fr_8rem_2rem] gap-2 items-center">
-              <input className={input} inputMode="numeric" aria-label="Documents" value={l.documents} onChange={(e) => setLine(i, { documents: e.target.value })} />
-              <input className={input} inputMode="numeric" aria-label="Pages" value={l.pages} onChange={(e) => setLine(i, { pages: e.target.value })} />
-              <input
-                className={`${input} col-span-2 sm:col-span-1`}
-                aria-label="Language pair"
-                placeholder="e.g. ქართული → English"
-                value={l.languagePair}
-                onChange={(e) => setLine(i, { languagePair: e.target.value })}
-              />
-              <input className={input} inputMode="decimal" aria-label="Final price" placeholder="0.00" value={l.price} onChange={(e) => setLine(i, { price: e.target.value })} />
+            <div key={i} className="grid grid-cols-2 sm:grid-cols-[1fr_1fr_5rem_8rem_2rem] gap-2 items-end border border-slate-100 rounded-lg p-3">
+              <div>
+                <label className={labelCls}>Document type</label>
+                <input
+                  className={input}
+                  placeholder="e.g. წესდება"
+                  value={l.documentType}
+                  onChange={(e) => setLine(i, { documentType: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className={labelCls}>Language pair</label>
+                <input
+                  className={input}
+                  placeholder="e.g. ინგლისური → ქართული"
+                  value={l.languagePair}
+                  onChange={(e) => setLine(i, { languagePair: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className={labelCls}>Pages</label>
+                <input className={input} inputMode="numeric" value={l.pages} onChange={(e) => setLine(i, { pages: e.target.value })} />
+              </div>
+              <div>
+                <label className={labelCls}>Final price (₾)</label>
+                <input className={input} inputMode="decimal" placeholder="0.00" value={l.price} onChange={(e) => setLine(i, { price: e.target.value })} />
+              </div>
               <button
                 type="button"
                 title="Remove line"
                 disabled={lines.length === 1}
                 onClick={() => setLines((ls) => ls.filter((_, idx) => idx !== i))}
-                className="p-2 text-slate-400 hover:text-red-600 disabled:opacity-30 disabled:hover:text-slate-400"
+                className="p-2 text-slate-400 hover:text-red-600 disabled:opacity-30 disabled:hover:text-slate-400 justify-self-end"
               >
                 <Trash2 size={15} />
               </button>
+              <fieldset className="col-span-2 sm:col-span-5 flex flex-wrap items-center gap-x-5 gap-y-1">
+                <legend className="sr-only">Notary approval</legend>
+                <span className="text-xs font-medium text-slate-500">Notary approval</span>
+                {[
+                  { v: true, text: 'Notarized' },
+                  { v: false, text: 'Not notarized' },
+                ].map((o) => (
+                  <label key={String(o.v)} className="inline-flex items-center gap-1.5 text-sm text-slate-700 cursor-pointer">
+                    <input
+                      type="radio"
+                      name={`notary-${i}`}
+                      checked={l.notarized === o.v}
+                      onChange={() => setLine(i, { notarized: o.v })}
+                      className="accent-indigo-600"
+                    />
+                    {o.text}
+                  </label>
+                ))}
+              </fieldset>
             </div>
           ))}
         </div>
@@ -346,7 +443,7 @@ export default function InvoiceForm() {
             <Plus size={14} /> Add line
           </button>
           <p className="text-sm text-slate-500">
-            Total <span className="ml-2 text-base font-semibold text-slate-900">{total.toFixed(2)} GEL</span>
+            Total <span className="ml-2 text-base font-semibold text-slate-900">{total.toFixed(2)} ₾</span>
           </p>
         </div>
       </section>

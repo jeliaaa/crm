@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { InvoiceFormat, InvoiceLang, fileBase, parseInvoice } from '@/lib/invoice';
 import { renderInvoicePdf } from '@/lib/invoicePdf';
 import { renderInvoiceDocx } from '@/lib/invoiceDocx';
+import { loadInvoiceSettings } from '@/lib/invoiceSettings';
 
 export const runtime = 'nodejs';
 
@@ -17,7 +18,9 @@ export async function POST(request: NextRequest) {
   const format = FORMATS.includes(body?.format) ? (body.format as InvoiceFormat) : 'pdf';
 
   try {
-    const buffer = format === 'pdf' ? await renderInvoicePdf(invoice, lang) : await renderInvoiceDocx(invoice, lang);
+    const settings = await loadInvoiceSettings();
+    const buffer =
+      format === 'pdf' ? await renderInvoicePdf(invoice, lang, settings) : await renderInvoiceDocx(invoice, lang, settings);
     const type =
       format === 'pdf'
         ? 'application/pdf'
