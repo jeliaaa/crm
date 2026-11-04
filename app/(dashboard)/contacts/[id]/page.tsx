@@ -5,11 +5,11 @@ import ContactDetail from './ContactDetail';
 export default async function ContactPage({ params }: { params: { id: string } }) {
   const { data: contact } = await supabase
     .from('contacts')
-    .select('*')
+    .select('id')
     .eq('id', params.id)
     .single();
 
   if (!contact) notFound();
 
-  return <ContactDetail contact={contact} />;
+  return <ContactDetail contactId={contact.id} />;
 }

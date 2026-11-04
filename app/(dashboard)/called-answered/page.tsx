@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import ContactQuickView from '@/components/ContactQuickView';
+import InterestSelect from '@/components/InterestSelect';
 import MarkHandledButton from '@/components/MarkHandledButton';
 import { normalizeRecordingUrl, isPlayableRecording } from '@/lib/recordingUrl';
 import { PhoneCall, PlayCircle } from 'lucide-react';
@@ -18,6 +19,7 @@ type Row = {
   city: string | null;
   category: string | null;
   action_required: boolean;
+  interest_level: number | null;
   updated_at: string;
 };
 
@@ -58,7 +60,7 @@ export default async function CalledAnsweredPage({
 
   let query = supabase
     .from('contacts')
-    .select('id, name, phone, mobile, email, city, category, action_required, updated_at', {
+    .select('id, name, phone, mobile, email, city, category, action_required, interest_level, updated_at', {
       count: 'exact',
     })
     .eq('stage', 'called_answered')
@@ -211,6 +213,10 @@ export default async function CalledAnsweredPage({
                     <PlayCircle size={18} />
                   </a>
                 )}
+
+                <div className="shrink-0">
+                  <InterestSelect contactId={c.id} value={c.interest_level} />
+                </div>
 
                 <div className="shrink-0">
                   {c.action_required ? (

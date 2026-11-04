@@ -5,7 +5,7 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
   const [{ data: contact, error: cErr }, { data: activities, error: aErr }] = await Promise.all([
     supabase
       .from('contacts')
-      .select('id, name, stage, phone, email, identification_number, city, category, address')
+      .select('*')
       .eq('id', params.id)
       .single(),
     supabase
@@ -23,9 +23,10 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   const body = await request.json();
-  const { type, toStage, comment, followUpDate } = body as {
-    type: 'status_change' | 'comment' | 'follow_up';
+  const { type, toStage, toLevel, comment, followUpDate } = body as {
+    type: 'status_change' | 'comment' | 'follow_up' | 'interest_change';
     toStage?: string;
+    toLevel?: number | null;
     comment?: string;
     followUpDate?: string;
   };
@@ -58,6 +59,25 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     activity.from_stage = current?.stage ?? null;
     activity.to_stage = toStage;
     if (comment?.trim()) activity.comment = comment.trim();
+  } else if (type === 'interest_change') {
+    if (toLevel !== null && !(Number.isInteger(toLevel) && toLevel! >= 0 && toLevel! <= 5)) {
+      return NextResponse.json({ error: 'toLevel must be 0-5 or null' }, { status: 400 });
+    }
+    const { data: current } = await supabase
+      .from('contacts')
+      .select('interest_level')
+      .eq('id', params.id)
+      .single();
+    if ((current?.interest_level ?? null) === toLevel) {
+      return NextResponse.json({ ok: true, unchanged: true });
+    }
+    const { error: updErr } = await supabase
+      .from('contacts')
+      .update({ interest_level: toLevel })
+      .eq('id', params.id);
+    if (updErr) return NextResponse.json({ error: updErr.message }, { status: 500 });
+    activity.from_stage = current?.interest_level === null || current?.interest_level === undefined ? null : String(current.interest_level);
+    activity.to_stage = toLevel === null ? null : String(toLevel);
   } else if (type === 'comment') {
     if (!comment?.trim()) return NextResponse.json({ error: 'comment is required' }, { status: 400 });
     activity.comment = comment.trim();

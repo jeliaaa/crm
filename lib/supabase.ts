@@ -27,6 +27,7 @@ export type Contact = {
   established_year: number | null;
   stage: Stage;
   action_required: boolean;
+  interest_level: number | null;
   notes: string;
   created_at: string;
   updated_at: string;

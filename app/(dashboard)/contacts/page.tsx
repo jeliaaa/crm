@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
+import ExportContactsButton from '@/components/ExportContactsButton';
 import DeleteAllButton from '@/components/DeleteAllButton';
 import ContactQuickView from '@/components/ContactQuickView';
 import {
@@ -176,6 +177,7 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
           <span className="text-slate-400 text-lg font-normal">({count?.toLocaleString() ?? 0})</span>
         </h1>
         <div className="flex gap-2 items-center">
+          <ExportContactsButton cities={cities} categories={categories} initial={searchParams} />
           <BulkDeleteButton />
           <DeleteAllButton />
           <Link
