@@ -150,7 +150,7 @@ export async function GET(request: NextRequest) {
     if (withHistory) ws.getColumn('history').alignment = { wrapText: true, vertical: 'top' };
 
     if (withHistory) {
-      const hs = wb.addWorksheet('History');
+      const hs = wb.addWorksheet('Contact history');
       hs.columns = [
         { header: 'Contact', key: 'contact', width: 34 },
         { header: 'ID №', key: 'idn', width: 16 },
