@@ -1,5 +1,6 @@
 'use client';
 
+import { notaryCost } from '@/lib/notaryCost';
 import { useEffect, useRef, useState } from 'react';
 import { ChevronDown, FileText, FileType2, Loader2, Plus, Search, Settings, Trash2, X } from 'lucide-react';
 import { DEFAULT_SETTINGS } from '@/lib/invoice';
@@ -185,6 +186,7 @@ export default function InvoiceForm() {
   // ── lines ────────────────────────────────────────────────────────────────
   const setLine = (i: number, patch: Partial<Line>) =>
     setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
+  const notaryTotal = lines.reduce((s, l) => s + (l.notarized ? notaryCost(toNumber(l.pages)).total : 0), 0);
   const total = lines.reduce((s, l) => s + toNumber(l.price), 0);
 
   async function generate(format: InvoiceFormat) {
@@ -430,6 +432,24 @@ export default function InvoiceForm() {
                     {o.text}
                   </label>
                 ))}
+                {l.notarized && (() => {
+                  const nc = notaryCost(toNumber(l.pages));
+                  return (
+                    <span className="inline-flex items-center gap-2 text-xs text-slate-500">
+                      Notary cost: <span className="font-semibold text-slate-800">{nc.total.toFixed(2)} ₾</span>
+                      <span className="text-slate-400">
+                        ({nc.perPage} ₾ × {nc.pages} pg × 1.18 VAT + {nc.flat} ₾)
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setLine(i, { price: (toNumber(l.price) + nc.total).toFixed(2) })}
+                        className="text-indigo-600 hover:text-indigo-800"
+                      >
+                        + add to price
+                      </button>
+                    </span>
+                  );
+                })()}
               </fieldset>
             </div>
           ))}
@@ -443,6 +463,7 @@ export default function InvoiceForm() {
             <Plus size={14} /> Add line
           </button>
           <p className="text-sm text-slate-500">
+            {notaryTotal > 0 && <span className="mr-4 text-xs">Notary est. {notaryTotal.toFixed(2)} ₾</span>}
             Total <span className="ml-2 text-base font-semibold text-slate-900">{total.toFixed(2)} ₾</span>
           </p>
         </div>
