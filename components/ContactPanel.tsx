@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Contact } from '@/lib/supabase';
-import { INTEREST_LEVELS, interestLabel } from '@/lib/interest';
+import { INTEREST_LEVELS, interestLabel, RATING_VALUES, ratingLabel } from '@/lib/interest';
 import {
   STAGE_ORDER,
   STAGE_LABELS,
@@ -28,6 +28,7 @@ import {
   User,
   Building2,
   Gauge,
+  Star,
   CalendarClock,
   MessageSquare,
   ArrowRight,
@@ -36,7 +37,7 @@ import {
 
 type Activity = {
   id: string;
-  type: 'status_change' | 'comment' | 'follow_up' | 'interest_change';
+  type: 'status_change' | 'comment' | 'follow_up' | 'interest_change' | 'rating_change';
   from_stage: string | null;
   to_stage: string | null;
   comment: string | null;
@@ -190,6 +191,10 @@ export default function ContactPanel({
 
   async function changeInterest(value: string) {
     await post({ type: 'interest_change', toLevel: value === '' ? null : Number(value) });
+  }
+
+  async function changeRating(value: string) {
+    await post({ type: 'rating_change', toLevel: value === '' ? null : Number(value) });
   }
 
   async function addComment() {
@@ -355,11 +360,11 @@ export default function ContactPanel({
                   </div>
                 </div>
 
-                {/* Interest level (second status, once called + answered) */}
+                {/* Often responses (second status, once called + answered) */}
                 {showInterest && (
                   <div>
                     <p className="text-sm font-medium text-slate-700 mb-2 flex items-center gap-1.5">
-                      <Gauge size={14} className="text-slate-400" /> Interest level
+                      <Gauge size={14} className="text-slate-400" /> Often responses
                     </p>
                     <select
                       value={contact.interest_level ?? ''}
@@ -374,6 +379,24 @@ export default function ContactPanel({
                     </select>
                   </div>
                 )}
+
+                {/* Rating 1-5 (every contact) */}
+                <div>
+                  <p className="text-sm font-medium text-slate-700 mb-2 flex items-center gap-1.5">
+                    <Star size={14} className="text-slate-400" /> Rating
+                  </p>
+                  <select
+                    value={contact.rating ?? ''}
+                    disabled={saving}
+                    onChange={(e) => changeRating(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
+                  >
+                    <option value="">— not rated —</option>
+                    {RATING_VALUES.map((r) => (
+                      <option key={r} value={r}>{'★'.repeat(r)}{'☆'.repeat(5 - r)} ({r}/5)</option>
+                    ))}
+                  </select>
+                </div>
 
                 {/* Add follow-up */}
                 <div>
@@ -573,10 +596,21 @@ function ActivityLine({ activity: a }: { activity: Activity }) {
     const lv = (v: string | null) => (v === null ? 'not set' : interestLabel(v));
     return (
       <p className="text-slate-700 flex items-center gap-1.5 flex-wrap">
-        Interest changed
+        Often responses changed
         <span className="text-slate-500">{lv(a.from_stage)}</span>
         <ArrowRight size={12} className="text-slate-400" />
         <span className="font-medium">{lv(a.to_stage)}</span>
+      </p>
+    );
+  }
+  if (a.type === 'rating_change') {
+    const rv = (v: string | null) => (v === null ? 'not rated' : ratingLabel(v));
+    return (
+      <p className="text-slate-700 flex items-center gap-1.5 flex-wrap">
+        Rating changed
+        <span className="text-slate-500">{rv(a.from_stage)}</span>
+        <ArrowRight size={12} className="text-slate-400" />
+        <span className="font-medium">{rv(a.to_stage)}</span>
       </p>
     );
   }

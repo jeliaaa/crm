@@ -1,4 +1,4 @@
-// Second status on a contact once they've been called + answered: how much
+// "Often responses" dropdown. Second status on a contact once they've been called + answered: how much
 // they need the service. Stored as contacts.interest_level (0-5).
 
 export const INTEREST_LEVELS: { value: number; label: string }[] = [
@@ -25,3 +25,11 @@ export const INTEREST_BADGE = [
   'bg-orange-100 text-orange-700',
   'bg-red-100 text-red-700',
 ];
+
+// Per-contact rating 1-5, independent of the "Often responses" dropdown.
+export const RATING_VALUES = [1, 2, 3, 4, 5] as const;
+
+export function ratingLabel(v: number | string | null | undefined): string {
+  if (v === null || v === undefined || v === '') return '';
+  return `${v} / 5`;
+}

@@ -32,6 +32,7 @@ const stamp = (iso: string) => new Date(iso).toISOString().slice(0, 16).replace(
 function changeText(a: Row): string {
   if (a.type === 'status_change')
     return `${a.from_stage ? stageLabel(a.from_stage) + ' → ' : ''}${stageLabel(a.to_stage)}`;
+  if (a.type === 'rating_change') return `${a.from_stage ?? 'not rated'} → ${a.to_stage ?? 'not rated'}`;
   if (a.type === 'interest_change') return `${lvl(a.from_stage)} → ${lvl(a.to_stage)}`;
   if (a.type === 'follow_up') return `Follow-up for ${a.follow_up_date}`;
   return '';
@@ -39,7 +40,7 @@ function changeText(a: Row): string {
 
 function describe(a: Row): string {
   const label =
-    a.type === 'status_change' ? 'Status' : a.type === 'interest_change' ? 'Interest' : a.type === 'follow_up' ? 'Follow-up' : 'Comment';
+    a.type === 'status_change' ? 'Status' : a.type === 'interest_change' ? 'Often responses' : a.type === 'rating_change' ? 'Rating' : a.type === 'follow_up' ? 'Follow-up' : 'Comment';
   const change = changeText(a);
   return `[${stamp(a.created_at)}] ${label}${change ? ': ' + change : ''}${a.comment ? ' — ' + a.comment : ''}`;
 }
@@ -127,7 +128,8 @@ export async function GET(request: NextRequest) {
       { header: 'Size', key: 'business_size', width: 12 },
       { header: 'Est.', key: 'established_year', width: 8 },
       { header: 'Stage', key: 'stage', width: 16 },
-      { header: 'Interest level', key: 'interest', width: 40 },
+      { header: 'Often responses', key: 'interest', width: 40 },
+      { header: 'Rating (1-5)', key: 'rating', width: 12 },
       { header: 'Notes', key: 'notes', width: 36 },
       { header: 'Added', key: 'created_at', width: 12 },
     ];
@@ -140,6 +142,7 @@ export async function GET(request: NextRequest) {
         activity: [c.activity_code, (c.categories || [])[0]].filter(Boolean).join(' '),
         stage: stageLabel(c.stage),
         interest: interestLabel(c.interest_level),
+        rating: c.rating ?? '',
         created_at: c.created_at ? String(c.created_at).slice(0, 10) : '',
         history: (history.get(c.id) ?? []).map(describe).join('\n'),
       });

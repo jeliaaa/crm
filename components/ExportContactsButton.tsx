@@ -127,7 +127,7 @@ export default function ExportContactsButton({
 
               <div>
                 <p className="text-sm font-medium text-slate-700 mb-2">
-                  Interest level <span className="text-slate-400 font-normal">(none selected = all)</span>
+                  Often responses <span className="text-slate-400 font-normal">(none selected = all)</span>
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {INTEREST_LEVELS.map((l) => (

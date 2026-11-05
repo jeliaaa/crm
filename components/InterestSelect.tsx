@@ -40,10 +40,10 @@ export default function InterestSelect({
       value={level}
       disabled={saving}
       onChange={(e) => change(e.target.value)}
-      title="Interest level"
+      title="Often responses"
       className="w-56 px-2 py-1.5 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 truncate"
     >
-      <option value="">Interest: not set</option>
+      <option value="">Often responses: not set</option>
       {INTEREST_LEVELS.map((l) => (
         <option key={l.value} value={l.value}>{l.value} - {l.label}</option>
       ))}

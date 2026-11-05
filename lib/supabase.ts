@@ -28,6 +28,7 @@ export type Contact = {
   stage: Stage;
   action_required: boolean;
   interest_level: number | null;
+  rating: number | null;
   notes: string;
   created_at: string;
   updated_at: string;

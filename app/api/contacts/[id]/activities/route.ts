@@ -24,7 +24,7 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   const body = await request.json();
   const { type, toStage, toLevel, comment, followUpDate } = body as {
-    type: 'status_change' | 'comment' | 'follow_up' | 'interest_change';
+    type: 'status_change' | 'comment' | 'follow_up' | 'interest_change' | 'rating_change';
     toStage?: string;
     toLevel?: number | null;
     comment?: string;
@@ -77,6 +77,25 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       .eq('id', params.id);
     if (updErr) return NextResponse.json({ error: updErr.message }, { status: 500 });
     activity.from_stage = current?.interest_level === null || current?.interest_level === undefined ? null : String(current.interest_level);
+    activity.to_stage = toLevel === null ? null : String(toLevel);
+  } else if (type === 'rating_change') {
+    if (toLevel !== null && !(Number.isInteger(toLevel) && toLevel! >= 1 && toLevel! <= 5)) {
+      return NextResponse.json({ error: 'toLevel must be 1-5 or null' }, { status: 400 });
+    }
+    const { data: current } = await supabase
+      .from('contacts')
+      .select('rating')
+      .eq('id', params.id)
+      .single();
+    if ((current?.rating ?? null) === toLevel) {
+      return NextResponse.json({ ok: true, unchanged: true });
+    }
+    const { error: updErr } = await supabase
+      .from('contacts')
+      .update({ rating: toLevel })
+      .eq('id', params.id);
+    if (updErr) return NextResponse.json({ error: updErr.message }, { status: 500 });
+    activity.from_stage = current?.rating == null ? null : String(current.rating);
     activity.to_stage = toLevel === null ? null : String(toLevel);
   } else if (type === 'comment') {
     if (!comment?.trim()) return NextResponse.json({ error: 'comment is required' }, { status: 400 });
