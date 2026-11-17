@@ -1,9 +1,10 @@
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
-import { stageBadge, stageLabel, STAGE_ORDER, STAGE_LABELS } from '@/lib/stages';
+import { stageBadge, STAGE_ORDER, STAGE_LABELS } from '@/lib/stages';
 import { getSnapshots, tbilisiDate } from '@/lib/snapshot';
 import { getCallCounts } from '@/lib/callCounts';
-import { formatPhone, phoneHref } from '@/lib/phone';
+import { getDashboardMonthlyStats } from '@/lib/dashboardStats';
+import MonthlyStatCard from '@/components/MonthlyStatCard';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,6 +15,8 @@ export default async function DashboardPage() {
   const today = tbilisiDate();
   const { byDate } = await getCallCounts(2);
   const callsToday = byDate[today] ?? 0;
+
+  const monthly = await getDashboardMonthlyStats();
 
   const latest = snapshots[0];
   const prev = snapshots[1];
@@ -36,12 +39,6 @@ export default async function DashboardPage() {
     supabase.from('contacts').select('*', { count: 'exact', head: true }).eq('stage', 'done'),
     supabase.from('contacts').select('*', { count: 'exact', head: true }).eq('stage', 'lost'),
   ]);
-
-  const { data: recent } = await supabase
-    .from('contacts')
-    .select('id, name, identification_number, head, phone, email, website, city, region, category, business_size, stage, created_at')
-    .order('created_at', { ascending: false })
-    .limit(10);
 
   const stats: { label: string; value: number; color: string; href?: string }[] = [
     { label: 'Total Contacts', value: total ?? 0, color: 'bg-indigo-500' },
@@ -89,6 +86,15 @@ export default async function DashboardPage() {
         })}
       </div>
 
+      <div className="mb-8">
+        <h2 className="font-semibold text-slate-900 mb-3">{monthly.monthLabel} vs {monthly.prevMonthLabel}</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          {monthly.stats.map((s) => (
+            <MonthlyStatCard key={s.key} stat={s} />
+          ))}
+        </div>
+      </div>
+
       <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-100 mb-8">
         <div className="flex items-baseline justify-between mb-3">
           <h2 className="font-semibold text-slate-900">Since previous 6 PM snapshot</h2>
@@ -123,71 +129,6 @@ export default async function DashboardPage() {
             })}
           </div>
         )}
-      </div>
-
-      <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
-          <h2 className="font-semibold text-slate-900">Recent Contacts</h2>
-          <Link href="/contacts" className="text-sm text-indigo-600 hover:underline">
-            View all →
-          </Link>
-        </div>
-        <div className="overflow-x-auto">
-        <table className="w-full text-sm whitespace-nowrap">
-          <thead>
-            <tr className="border-b border-slate-100 bg-slate-50">
-              {['Name', 'ID №', 'Head', 'Phone', 'Email', 'Website', 'City', 'Region', 'Industry', 'Size', 'Stage'].map((h) => (
-                <th key={h} className="text-left px-4 py-3 text-slate-500 font-medium">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {recent?.map((c) => (
-              <tr key={c.id} className="border-b border-slate-50 hover:bg-slate-50">
-                <td className="px-4 py-3">
-                  <Link href={`/contacts/${c.id}`} className="font-medium text-indigo-600 hover:underline">
-                    {c.name}
-                  </Link>
-                </td>
-                <td className="px-4 py-3 text-slate-600 font-mono text-xs">{c.identification_number || '—'}</td>
-                <td className="px-4 py-3 text-slate-600">{c.head || '—'}</td>
-                <td className="px-4 py-3 text-slate-600 font-mono text-xs">
-                  {c.phone ? <a href={phoneHref(c.phone)} className="hover:text-indigo-600">{formatPhone(c.phone)}</a> : '—'}
-                </td>
-                <td className="px-4 py-3 text-slate-600 text-xs">
-                  {c.email ? <a href={`mailto:${c.email}`} className="hover:text-indigo-600">{c.email}</a> : '—'}
-                </td>
-                <td className="px-4 py-3">
-                  {c.website ? (
-                    <a href={c.website.startsWith('http') ? c.website : `https://${c.website}`} target="_blank" rel="noopener noreferrer" className="text-indigo-500 hover:underline text-xs truncate max-w-[140px] block">
-                      {c.website.replace(/^https?:\/\//, '')}
-                    </a>
-                  ) : '—'}
-                </td>
-                <td className="px-4 py-3 text-slate-600">{c.city || '—'}</td>
-                <td className="px-4 py-3 text-slate-600">{c.region || '—'}</td>
-                <td className="px-4 py-3 text-slate-600 max-w-[160px] truncate" title={c.category || ''}>{c.category || '—'}</td>
-                <td className="px-4 py-3 text-slate-600 text-xs">{c.business_size || '—'}</td>
-                <td className="px-4 py-3">
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${stageBadge(c.stage)}`}>
-                    {stageLabel(c.stage)}
-                  </span>
-                </td>
-              </tr>
-            ))}
-            {!recent?.length && (
-              <tr>
-                <td colSpan={11} className="px-6 py-10 text-center text-slate-400 text-sm">
-                  No contacts yet.{' '}
-                  <Link href="/scrape" className="text-indigo-600 hover:underline">
-                    Scrape some businesses →
-                  </Link>
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-        </div>
       </div>
     </div>
   );
