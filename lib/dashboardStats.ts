@@ -1,9 +1,10 @@
 import { supabase } from './supabase';
 import { tbilisiDate } from './snapshot';
 
-// Business-facing monthly stats for the dashboard: this calendar month
-// (Tbilisi) against the previous one, for every metric a sales team
-// actually watches day to day.
+// Business-facing monthly stats for the dashboard: this month so far
+// (Tbilisi) against the SAME number of days last month — day 1 through
+// today, not day 1 through today vs. all 30/31 days of last month — for
+// every metric a sales team actually watches day to day.
 
 const PAGE = 1000;
 const MAX_ROWS = 50000;
@@ -12,30 +13,44 @@ function pad(n: number): string {
   return String(n).padStart(2, '0');
 }
 
+function daysInMonth(y: number, m: number): number {
+  // m is 1-indexed; day 0 of month m+1 is the last day of month m.
+  return new Date(Date.UTC(y, m, 0)).getUTCDate();
+}
+
 type MonthBounds = { startIso: string; endIso: string; label: string };
 
 // Tbilisi has used a fixed UTC+4 offset (no DST) since 2017, so a literal
 // offset in the ISO string gives the exact Tbilisi midnight without having
 // to round-trip through Intl for every boundary.
-function tbilisiMonthBounds(monthsAgo: number): MonthBounds {
-  const [y0, m0] = tbilisiDate().split('-').map(Number); // m0 is 1-indexed
+function tbilisiMonthToDateBounds(monthsAgo: number): MonthBounds {
+  const [y0, m0, d0] = tbilisiDate().split('-').map(Number); // 1-indexed month/day
   let y = y0;
   let m = m0 - monthsAgo;
   while (m <= 0) {
     m += 12;
     y -= 1;
   }
+  // Clamp to the last day of a shorter month (Mar 31 vs Feb -> Feb 28/29).
+  const endDay = Math.min(d0, daysInMonth(y, m));
+
   let ny = y;
-  let nm = m + 1;
-  if (nm > 12) {
-    nm = 1;
-    ny += 1;
+  let nm = m;
+  let nd = endDay + 1;
+  if (nd > daysInMonth(y, m)) {
+    nd = 1;
+    nm += 1;
+    if (nm > 12) {
+      nm = 1;
+      ny += 1;
+    }
   }
-  const label = new Date(Date.UTC(y, m - 1, 1)).toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+
+  const monthName = new Date(Date.UTC(y, m - 1, 1)).toLocaleString('en-US', { month: 'short', timeZone: 'UTC' });
   return {
     startIso: `${y}-${pad(m)}-01T00:00:00+04:00`,
-    endIso: `${ny}-${pad(nm)}-01T00:00:00+04:00`,
-    label,
+    endIso: `${ny}-${pad(nm)}-${pad(nd)}T00:00:00+04:00`,
+    label: `${monthName} 1–${endDay}`,
   };
 }
 
@@ -138,8 +153,8 @@ export type DashboardMonthlyStats = {
 };
 
 export async function getDashboardMonthlyStats(): Promise<DashboardMonthlyStats> {
-  const cur = tbilisiMonthBounds(0);
-  const prev = tbilisiMonthBounds(1);
+  const cur = tbilisiMonthToDateBounds(0);
+  const prev = tbilisiMonthToDateBounds(1);
 
   const [curRows, prevRows, curLeads, prevLeads, curDone, prevDone, curLost, prevLost] = await Promise.all([
     fetchCallEvents(cur.startIso, cur.endIso),
