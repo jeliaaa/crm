@@ -141,7 +141,7 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
       <span className="text-xs text-slate-400">
         Page {page} of {totalPages} · {count?.toLocaleString()} total
       </span>
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         {page > 1 && (
           <Link href={buildQuery({ page: String(page - 1) })} className="px-3 py-1.5 rounded-lg text-sm bg-white text-slate-600 hover:bg-slate-100 border border-slate-200">
             ← Prev
@@ -195,8 +195,8 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
         </div>
       </div>
 
-      <form method="GET" className="flex gap-3 mb-6 flex-wrap">
-        <div className="relative flex-1 min-w-[280px]">
+      <form method="GET" className="flex flex-col sm:flex-row gap-3 mb-6 sm:flex-wrap">
+        <div className="relative sm:flex-1 sm:min-w-[280px] min-w-0">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
           <input
             name="q"
@@ -208,7 +208,7 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
         <select
           name="stage"
           defaultValue={searchParams.stage || ''}
-          className="px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+          className="w-full sm:w-auto min-w-0 px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
         >
           <option value="">All stages</option>
           {STAGE_ORDER.map((s) => (
@@ -218,7 +218,7 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
         <select
           name="city"
           defaultValue={searchParams.city || ''}
-          className="px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+          className="w-full sm:w-auto min-w-0 px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
         >
           <option value="">All cities</option>
           {cities.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -226,7 +226,7 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
         <select
           name="category"
           defaultValue={searchParams.category || ''}
-          className="px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+          className="w-full sm:w-auto min-w-0 px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
         >
           <option value="">All categories</option>
           {categories.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -234,22 +234,24 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
         <select
           name="contact"
           defaultValue={searchParams.contact || ''}
-          className="px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+          className="w-full sm:w-auto min-w-0 px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
         >
           <option value="">Any contact info</option>
           <option value="phone">Has phone number</option>
           <option value="email">Has email</option>
           <option value="phoneOrEmail">Has phone or email</option>
         </select>
-        <button
-          type="submit"
-          className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700"
-        >
-          Filter
-        </button>
-        <Link href="/contacts" className="px-4 py-2 text-slate-600 rounded-lg text-sm hover:bg-slate-100 border border-slate-200 bg-white">
-          Clear
-        </Link>
+        <div className="flex gap-2">
+          <button
+            type="submit"
+            className="flex-1 sm:flex-none px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700"
+          >
+            Filter
+          </button>
+          <Link href="/contacts" className="flex-1 sm:flex-none text-center px-4 py-2 text-slate-600 rounded-lg text-sm hover:bg-slate-100 border border-slate-200 bg-white">
+            Clear
+          </Link>
+        </div>
       </form>
 
       {pagination && <div className="mb-4">{pagination}</div>}
