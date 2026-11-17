@@ -9,7 +9,7 @@ export default async function PipelinePage() {
     .limit(500);
 
   return (
-    <div className="p-8 flex flex-col h-full">
+    <div className="p-4 sm:p-6 lg:p-8 flex flex-col h-full">
       <h1 className="text-2xl font-bold text-slate-900 mb-6">Pipeline</h1>
       <KanbanBoard initialContacts={contacts ?? []} />
     </div>

@@ -49,7 +49,7 @@ export default async function FollowUpsPage() {
 
   if (error) {
     return (
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-red-700 text-sm font-mono">
           <p className="font-bold mb-1">Could not load follow-ups:</p>
           <p>{error.message}</p>
@@ -75,7 +75,7 @@ export default async function FollowUpsPage() {
   ];
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <div className="flex items-center gap-2 mb-6">
         <CalendarClock className="text-indigo-600" size={22} />
         <h1 className="text-2xl font-bold text-slate-900">Follow-ups</h1>

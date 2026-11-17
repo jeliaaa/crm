@@ -117,7 +117,7 @@ export default async function AllCallsPage({
 
   if (error) {
     return (
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-red-700 text-sm font-mono">
           <p className="font-bold mb-1">Could not load the call log:</p>
           <p>{error.message}</p>
@@ -211,7 +211,7 @@ export default async function AllCallsPage({
   );
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <div className="flex items-center gap-2 mb-1">
         <ListOrdered className="text-indigo-600" size={22} />
         <h1 className="text-2xl font-bold text-slate-900">All the calls</h1>
@@ -222,7 +222,7 @@ export default async function AllCallsPage({
         answered or not, matched to a contact or not. No filters.
       </p>
 
-      <div className="flex gap-2 mb-5">
+      <div className="flex gap-2 mb-5 flex-wrap">
         {tabs.map((t) => (
           <Link
             key={t.href}
@@ -238,7 +238,7 @@ export default async function AllCallsPage({
         ))}
       </div>
 
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         {stats.map((s) => (
           <div
             key={s.label}

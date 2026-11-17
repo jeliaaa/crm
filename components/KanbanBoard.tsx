@@ -91,7 +91,7 @@ function StageColumn({
 
   return (
     <div
-      className={`flex-shrink-0 w-60 flex flex-col rounded-xl border ${
+      className={`flex-shrink-0 w-[82vw] sm:w-60 snap-center flex flex-col rounded-xl border ${
         isOver ? 'border-indigo-400 ring-2 ring-indigo-200' : 'border-slate-200'
       } ${stage.bg} transition-all`}
     >
@@ -173,7 +173,7 @@ export default function KanbanBoard({ initialContacts }: { initialContacts: Kanb
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex gap-3 overflow-x-auto pb-4 flex-1" style={{ height: 'calc(100vh - 11rem)' }}>
+      <div className="flex gap-3 overflow-x-auto pb-4 flex-1 min-h-0 snap-x snap-mandatory sm:snap-none">
         {STAGES.map((stage) => (
           <StageColumn
             key={stage.id}

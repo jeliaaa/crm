@@ -252,7 +252,7 @@ export default function ScrapePage() {
   const remaining = totalPages !== null ? Math.max(0, totalPages - page + 1) : null;
 
   return (
-    <div className="p-8 max-w-2xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-2xl">
       <h1 className="text-2xl font-bold text-slate-900 mb-1">Import Businesses</h1>
       <p className="text-slate-500 text-sm mb-6">
         {source === 'geostat'

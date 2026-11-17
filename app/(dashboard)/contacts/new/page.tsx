@@ -15,7 +15,7 @@ export default async function NewContactPage() {
   ]);
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <Link
         href="/contacts"
         className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-900 mb-6"

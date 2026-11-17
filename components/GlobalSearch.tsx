@@ -201,7 +201,7 @@ export default function GlobalSearch() {
       </div>
 
       {showPanel && (
-        <div className="absolute left-3 top-full mt-2 w-[420px] max-h-[70vh] overflow-y-auto bg-white rounded-xl shadow-xl border border-slate-200 z-50 py-1">
+        <div className="absolute left-3 right-3 sm:right-auto top-full mt-2 sm:w-[420px] max-h-[70vh] overflow-y-auto bg-white rounded-xl shadow-xl border border-slate-200 z-50 py-1">
           {hits.map((hit, i) => {
             const detail = matchLine(hit, term);
             return (

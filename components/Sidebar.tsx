@@ -1,44 +1,18 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import GlobalSearch from './GlobalSearch';
-import { LayoutDashboard, Users, Kanban, Download, LogOut, CalendarClock, CalendarDays, PhoneCall, ListOrdered, Receipt } from 'lucide-react';
+import { LogOut } from 'lucide-react';
+import { NAV } from '@/lib/nav';
+import { useActionCount } from '@/lib/hooks/useActionCount';
 
-const NAV = [
-  { href: '/', label: 'Dashboard', icon: LayoutDashboard, exact: true },
-  { href: '/contacts', label: 'Contacts', icon: Users },
-  { href: '/called-answered', label: 'Called + answered', icon: PhoneCall, badge: true },
-  { href: '/calls', label: 'All the calls', icon: ListOrdered },
-  { href: '/follow-ups', label: 'Follow-ups', icon: CalendarClock },
-  { href: '/calendar', label: 'Calendar', icon: CalendarDays },
-  { href: '/pipeline', label: 'Pipeline', icon: Kanban },
-  { href: '/invoices', label: 'Create an invoice', icon: Receipt },
-  { href: '/scrape', label: 'Scrape', icon: Download },
-];
-
+// Visible from `lg` up only — below that, app/(dashboard)/layout.tsx shows
+// MobileNav's top and bottom bars instead.
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const [actionCount, setActionCount] = useState(0);
-
-  // Calls land via webhook, so the count has to come to us — refresh on
-  // navigation and every half minute.
-  const refreshCount = useCallback(async () => {
-    try {
-      const res = await fetch('/api/action-required', { cache: 'no-store' });
-      if (!res.ok) return;
-      const { count } = await res.json();
-      setActionCount(typeof count === 'number' ? count : 0);
-    } catch { /* offline — leave the last known count */ }
-  }, []);
-
-  useEffect(() => {
-    refreshCount();
-    const timer = setInterval(refreshCount, 30_000);
-    return () => clearInterval(timer);
-  }, [refreshCount, pathname]);
+  const actionCount = useActionCount();
 
   async function logout() {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -46,7 +20,7 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className="w-56 bg-slate-900 flex flex-col shrink-0">
+    <aside className="hidden lg:flex w-56 bg-slate-900 flex-col shrink-0">
       <div className="px-4 py-5 border-b border-slate-800 flex items-center gap-2.5">
         <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shrink-0">
           <span className="text-white font-bold text-sm">G</span>

@@ -83,7 +83,7 @@ export default async function CalledAnsweredPage({
 
   if (error) {
     return (
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-red-700 text-sm font-mono">
           <p className="font-bold mb-1">Could not load answered calls:</p>
           <p>{error.message}</p>
@@ -122,7 +122,7 @@ export default async function CalledAnsweredPage({
   ];
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <div className="flex items-center gap-2 mb-1">
         <PhoneCall className="text-emerald-600" size={22} />
         <h1 className="text-2xl font-bold text-slate-900">Called + answered</h1>
@@ -133,7 +133,7 @@ export default async function CalledAnsweredPage({
         followed up yet.
       </p>
 
-      <div className="flex gap-2 mb-5">
+      <div className="flex gap-2 mb-5 flex-wrap">
         {tabs.map((t) => (
           <Link
             key={t.href}

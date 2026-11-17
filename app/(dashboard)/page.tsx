@@ -53,7 +53,7 @@ export default async function DashboardPage() {
   ];
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-bold text-slate-900 mb-6">Dashboard</h1>
 
       <div className="bg-emerald-600 rounded-xl p-5 shadow-sm mb-6 flex items-center justify-between">
@@ -69,7 +69,7 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-6 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
         {stats.map((s) => {
           const body = (
             <>

@@ -244,7 +244,7 @@ export default function InvoiceForm() {
             <p className="text-sm font-semibold text-slate-900">{settings.nameKa}</p>
             <p className="text-xs text-slate-500">{settings.nameEn}</p>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full sm:w-auto">
             <div>
               <label className={labelCls}>Invoice №</label>
               <input className={input} value={number} onChange={(e) => setNumber(e.target.value)} />
